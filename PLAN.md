@@ -93,6 +93,17 @@ Running a privileged systemd-enabled container is the alternative and was
 declined for now, because the quirks cost more than the one substitution saves.
 Revisit if service management itself becomes the thing being learned.
 
+**Access is over SSH, not `docker exec`.** `ssh -p 2222 root@localhost` with key
+authentication, so the connection habit matches the eventual host. Only the
+public key is mounted, read-only. `docker compose exec web bash` remains the
+fallback for when SSH itself is the thing that is broken.
+
+**Two further places the mirror is thin, observed at step 1.** The container
+shares the host kernel rather than running Ubuntu's, so `uname -r` reports the
+host. And the `ubuntu:24.04` image is minimized, so documentation and some
+utilities a real server carries are absent until `unminimize` is run. Neither
+affects Apache, PHP, MySQL, or WordPress.
+
 ## Design system
 
 The Modernist design system is present at
@@ -177,6 +188,11 @@ Fuller reasoning, retained from when this was the settled plan.
 | CloudWatch agent for memory metrics | EC2 publishes no memory metric by default, and memory is the constraint |
 | Amazon SES for outbound mail | EC2 blocks outbound port 25, so password resets fail silently without it |
 
+On the database, if AWS is chosen: RDS becomes worthwhile when managed recovery,
+independent scaling, availability, or database isolation justifies a second
+always-on service. Until then, use automated logical database backups, encrypted
+EBS snapshots, off-instance copies, and a tested restore procedure.
+
 At `us-east-1` list prices the baseline was approximately $12.26 for `t4g.small`
 compute, $2.40 for 30 GiB `gp3`, and $3.65 for one public IPv4 address, totalling
 about **$18.31 per month**, excluding snapshots, backup storage, excess data
@@ -223,8 +239,8 @@ by hand.**
 Phase A, the local environment:
 
 - [x] **Step 0, Git repository and ignore rules.**
-- [ ] Step 1, bare Ubuntu 24.04 container running, repository mounted, port
-      mapped.
+- [x] **Step 1, Ubuntu 24.04 container running over SSH, repository mounted,
+      ports mapped.**
 - [ ] Step 2, install and configure Apache with `php-fpm` inside it.
 - [ ] Step 3, install MySQL, create the WordPress database and user.
 - [ ] Step 4, install WordPress and complete the setup.

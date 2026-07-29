@@ -1,0 +1,56 @@
+# The-abyss local environment.
+#
+# One container standing in for the eventual server. Run it from the repository
+# root with `docker compose up -d`, then connect the way you will connect to the
+# real host:
+#
+#   ssh -p 2222 root@localhost
+#
+# `docker compose exec web bash` still works and is the fallback when ssh itself
+# is what is broken.
+#
+# See PLAN.md, "The local environment", for what this mirrors and where it
+# differs from a real Ubuntu host.
+
+services:
+  web:
+    build:
+      context: ./docker
+    container_name: abyss-web
+
+    ports:
+      # Host 8080 to container 80. The site answers at http://localhost:8080
+      # once Apache exists at step 2. This port is load-bearing: WP_HOME and
+      # WP_SITEURL are set by constant in wp-config.php and must match it.
+      - "8080:80"
+
+      # Host 2222 to container 22. Not 22 on the host: your machine very likely
+      # runs its own sshd there, and shadowing your real SSH port with a
+      # throwaway container is a mistake worth designing out.
+      - "2222:22"
+
+    volumes:
+      # The repository itself, so theme/ and design/ are reachable from inside
+      # without being baked into the image. Edits on either side are visible to
+      # the other immediately.
+      - ./:/workspace
+
+      # WordPress lives here, on a named volume so a container restart does not
+      # discard the install. PLAN.md pins the path to /var/www/the-abyss.
+      - wordpress:/var/www
+
+      # The database, on its own volume for the same reason. Losing this loses
+      # every post and setting, so it is separated from the WordPress files
+      # deliberately rather than sharing one volume.
+      - mysql:/var/lib/mysql
+
+      # Your PUBLIC key only, read-only. The entrypoint copies it into
+      # /root/.ssh/authorized_keys with the ownership sshd requires. Your
+      # private key never enters this container, this repository, or this
+      # mount. Read-only because nothing in the container has any reason to
+      # write to it.
+      - ${HOME}/.ssh/id_ed25519.pub:/tmp/host-key.pub:ro
+
+volumes:
+  wordpress:
+  mysql:

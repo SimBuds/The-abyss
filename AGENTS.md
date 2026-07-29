@@ -997,7 +997,9 @@ The Q&A block is required, even when it says `none`.
 - `# IN AWS CONSOLE` is the AWS Management Console.
 - `# AWS CLI` is the `aws` command on the human's desktop terminal, run under an
   active `aws sso login` session.
-- `# ON AWS SERVER` is an SSH session on the EC2 Ubuntu host.
+- `# ON DROPLET` is an SSH session on the DigitalOcean droplet. This host also
+  serves a live portfolio site, so every command names it explicitly.
+- `# IN DO CONSOLE` is the DigitalOcean control panel.
 - `# IN WP-ADMIN` is the WordPress dashboard.
 - `# IN MYSQL` is the `mysql>` prompt.
 - `# WP-CLI` is the `wp` command running as the web user.
