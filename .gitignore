@@ -1,0 +1,33 @@
+# Credentials and keys — never commit these.
+*.pem
+*.key
+*.ppk
+.env
+.env.*
+wp-config.php
+credentials
+secrets.*
+*.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# WordPress runtime — the theme is versioned, the installation is not.
+wp-admin/
+wp-includes/
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/cache/
+wp-content/plugins/
+
+# Database and backup artefacts.
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+
+# Local tooling.
+node_modules/
+vendor/
+.DS_Store
+*.log
