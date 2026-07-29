@@ -11,10 +11,19 @@ in for itself.
 This file is named `AGENTS.md`, uppercase, matching its siblings. Refer to it
 by that exact name.
 
-**Terminology.** The five-step **workflow** (Steps 1 to 5) is how a request
-moves from intake to handoff. A **phase** is a unit of work planned in
-`IMPLEMENT.md`. Steps describe process, phases describe scope. The two words
-are never interchangeable in this file.
+**This is a living baseline.** Casey revises it as projects reveal gaps.
+When a session exposes a gap or a rule that fights the work, the agent proposes
+the amendment explicitly, with the failure that motivates it, rather than
+silently working around the rule. Approved amendments to the universal body
+carry a date and travel to every repo at the next port. Approved amendments
+that are project-specific go in the final section only.
+
+**Terminology.** Three words are load-bearing and never interchangeable. A
+**stage** is one of the five parts of the workflow below, how a request moves
+from intake to handoff. A **phase** is a unit of work planned in
+`IMPLEMENT.md`. A **step** belongs to the project (a build step, a plan step)
+and is never used for the workflow or for `IMPLEMENT.md` units. When the human
+says "step", read it as the project's meaning, and ask if it is ambiguous.
 
 ## Precedence
 
@@ -78,7 +87,7 @@ continuously to maintain context. Do not rely on conversational memory.
 4. **`IMPLEMENT.md`**: the execution engine. Granular phase-by-phase task
    breakdown, progress checkboxes, current state. **Untracked and
    gitignored.** It is the working file of whoever is mid-task, not a repo
-   artifact. A fresh clone has none, so create it at Step 2. Its absence means
+   artifact. A fresh clone has none, so create it at Stage 2. Its absence means
    "no work in flight", not "state lost". Because it does not survive a clone,
    anything durable learned during a phase must land in the tracked docs
    before cleanup.
@@ -111,7 +120,7 @@ work as complete. Do not leave completed phase logs in it.
 - Deferred out of this phase:
 
 ## Phase reports
-<!-- pasted at Step 5, newest first -->
+<!-- pasted at Stage 5, newest first -->
 ```
 
 ---
@@ -119,7 +128,7 @@ work as complete. Do not leave completed phase logs in it.
 ## Session boundaries
 
 - On any new session, after context compaction, or whenever the earlier
-  conversation is no longer available verbatim, re-run Step 1 from the tracked
+  conversation is no longer available verbatim, re-run Stage 1 from the tracked
   docs and `IMPLEMENT.md`. Never resume from remembered state.
 - Anything worth surviving the session lives in a doc, not in the
   conversation.
@@ -128,11 +137,11 @@ work as complete. Do not leave completed phase logs in it.
 
 ## The workflow contract
 
-All non-trivial work runs through these five steps. "Non-trivial" is defined
-by the blast-radius tiers below. Trivial-tier work skips to Step 4 under the
+All non-trivial work runs through these five stages. "Non-trivial" is defined
+by the blast-radius tiers below. Trivial-tier work skips to Stage 4 under the
 trivial-tier exemption stated there.
 
-### Step 1: understand and sync
+### Stage 1: understand and sync
 
 - Restate the request in one sentence.
 - **Mandatory read:** the sections of `PLAN.md` relevant to the feature, and
@@ -142,7 +151,7 @@ trivial-tier exemption stated there.
   interpretations, ask before proceeding.
 - Read the code paths involved. Do not guess at file contents.
 
-### Step 2: plan and document
+### Stage 2: plan and document
 
 - Update or create `IMPLEMENT.md` from the skeleton. The plan is **never**
   left only in the conversation.
@@ -150,16 +159,16 @@ trivial-tier exemption stated there.
   functions to add or change, the reuse audit, and verification steps.
 - Ask for approval of the updated `IMPLEMENT.md` before writing any code.
 
-### Step 3: break the work into phases (context anchoring)
+### Stage 3: break the work into phases (context anchoring)
 
 - Split the plan into phases that each pass the phase-sizing rules below.
-- At the start of Step 3, and at the start of *every* subsequent phase, check
+- At the start of Stage 3, and at the start of *every* subsequent phase, check
   `IMPLEMENT.md` to verify current state.
 - Re-state in three to six bullets: the inherited decisions (every choice
   Casey has made so far this session), and the current state per
   `IMPLEMENT.md` (phases done, phase in progress, phases remaining).
 
-### Step 4: execute one phase
+### Stage 4: execute one phase
 
 - One phase at a time. No look-ahead edits into later phases.
 - Honor the surface-first audit. Touching a file or function not explicitly
@@ -169,7 +178,7 @@ trivial-tier exemption stated there.
 - If a decision arises mid-phase that the plan did not cover, stop and ask
   under the decision gates. Do not silently choose.
 
-### Step 5: verify and hand back
+### Stage 5: verify and hand back
 
 - Run the verification listed in `IMPLEMENT.md` for this phase. Report
   observed output, not predicted output.
@@ -199,6 +208,28 @@ phase's diff is committed, or explicitly accepts stacking uncommitted work.
 Without this, "atomic revert" is fiction: three phases deep, nothing is
 individually revertible.
 
+### Execution-assist phases
+
+Some phases deliver instructions the human runs, not a diff the agent writes:
+guided infrastructure work, console walkthroughs, live debugging of an
+external system. The full per-turn machinery is built for diffs and fights
+this shape, so it scales down. (Added 2026-07-29 after a guided infrastructure
+session where the ceremony competed with the guidance.)
+
+- The phase stays **open across many turns**. Each turn of guidance is not a
+  phase, needs no diff audit or DoD checklist, and does not end with the
+  handoff line.
+- The phase's report and handoff happen when the human's evidence lands and
+  the result is recorded in the tracked docs, not per instruction given.
+- Trivial-tier doc edits that support the assist (correcting an instruction,
+  logging a decision) proceed under the trivial rules without opening a new
+  phase.
+- What scales down is the paperwork, never the evidence. Honest checks,
+  observed-output-only reporting, decision gates, and tier 0 apply at full
+  strength on every turn. Dropping verification because the session feels
+  interactive is exactly backwards: interactive sessions are where unverified
+  claims cost the most.
+
 ---
 ## Phase-sizing rules
 
@@ -224,7 +255,7 @@ phase in `IMPLEMENT.md`.
   you will touch and the functions you will add or change. Touching anything
   outside that list is a fatal scope error: revert the unplanned change
   immediately, pause execution, and ask for permission to expand the surface.
-  The audit is checked mechanically at Step 5 via `git diff --stat` against
+  The audit is checked mechanically at Stage 5 via `git diff --stat` against
   the plan.
 - **No piggybacking.** A phase does its one thing. Refactors, drive-by
   cleanups, and "while I'm here" fixes get their own phases.
@@ -248,7 +279,7 @@ project and in any referenced shared libraries. In the plan, state:
 ## Definition of done (per phase)
 
 A phase is strictly incomplete until every item below passes. Paste this
-checklist, filled in, as part of the Step 5 phase report:
+checklist, filled in, as part of the Stage 5 phase report:
 
 ```
 DoD check, Phase <N>:
@@ -304,6 +335,15 @@ When in doubt, present the options as a multiple-choice question with a
 recommended default and the tradeoff for each. Do not invent a single path
 forward when a meaningful fork exists. A mid-phase question is a sanctioned
 yield of control and does not use the handoff line.
+
+**A load-bearing decision blocks everything that depends on it.** Once a
+decision is identified as load-bearing, no step, phase, or instruction that
+depends on it proceeds until the decision is made. Naming the risk and then
+letting execution cross the point where the decision takes effect is a
+violation, not diligence. If the decision is the human's, say plainly which
+actions are blocked behind it, and hold there. (Added 2026-07-29: a flagged
+but unsettled environment choice was allowed to ride past a provisioning
+step, and every subsequent command silently targeted the wrong environment.)
 
 ---
 
@@ -378,6 +418,48 @@ actions) are tier 0 above. In addition:
 - **A failed grep is not proof of absence.** Rendered or serialized output
   wraps and reorders. Normalize (flatten newlines, pretty-print JSON) before
   concluding something is missing.
+
+### Honest checks
+
+Added 2026-07-29 after a session where an invalid flag plus a fallback
+printed PASS on a command that had errored, twice, and error suppression hid
+the failures that mattered most.
+
+- **A command error is a failed check, never a passed one.** A check whose
+  command did not run proves nothing, and reporting it as a pass is a false
+  report.
+- **No fallback may convert failure into success.** Patterns like
+  `command || echo PASS` are prohibited: they print the success token
+  precisely when the command breaks. Test the exit code explicitly and make
+  the failure branch loud.
+- **Never suppress stderr to make a sequence look clean.** `>/dev/null 2>&1`
+  on a check, or on any command handed to the human, hides the one line that
+  explains the failure. Idempotency comes from an explicit existence check
+  with a visible skip message, not from swallowing errors.
+- **Every captured variable is verified before anything depends on it.**
+  A `$(...)` capture gets echoed and checked for the expected shape and count
+  (non-empty, exactly one ID, the right prefix) before the next command uses
+  it. An empty variable does not fail loudly: it silently widens the query or
+  errors one step downstream, where the message no longer names the cause.
+- **Diagnostic queries over-include.** When investigating a failure, show the
+  whole object and read it, rather than filtering to the fields a hypothesis
+  expects. A narrow query can return a true result that reads as the wrong
+  answer, and a confident misreading of true output is worse than no check.
+
+### Diagnostic loop
+
+When debugging a live failure, especially on a system the human operates:
+
+- **One hypothesis, one check, per turn.** State what the failure would look
+  like if the hypothesis holds, give the single check that discriminates,
+  read the actual output, then move. Handing over three diagnostic branches
+  at once produces interleaved output nobody can attribute.
+- **Classify the failure before treating it.** A timeout, a refusal, and an
+  auth error are three different problems with three different fixes.
+  Naming which one the output shows comes before any remedy.
+- **Read what came back, not what was expected.** When output surprises,
+  the next action is to widen the view of the same object, not to re-run the
+  narrow query that produced the surprise.
 
 ---
 
@@ -708,6 +790,41 @@ credentials) are tier 0 above. In addition:
 - **Default to the visible, interruptible mode.** Headless, silent, or
   unattended execution is opt-in via an explicit flag, and only for dry runs.
 
+### Commands handed to the human
+
+When the human is the one executing, the command block is the interface, and
+it has to survive being pasted by someone who cannot see the agent's
+intentions. (Added 2026-07-29 after `<angle-bracket>` placeholders were
+parsed as shell redirection and an unchecked empty capture sent a session
+down the wrong diagnosis.)
+
+- **Placeholders are variable assignments with inert defaults, never
+  `<angle-brackets>` inside a runnable block.** The shell treats `<` as
+  redirection, so bracket placeholders produce baffling errors when pasted.
+  Put the substitution on its own assignment line with a safe default that
+  fails harmlessly if left unedited (documentation-range values such as
+  `203.0.113.10`, or an obviously fake token the target system rejects), and
+  mark the line to edit with a comment.
+- **Every capture the human's next command depends on ships with its check.**
+  Include the `echo`, state the expected shape ("this must print exactly one
+  ID with the expected prefix"), and say what to do when it does not match. A handed command
+  that builds on an unverified capture hands over the failure too.
+- **No error suppression in handed commands.** The human debugging a failure
+  needs the error text more than the agent needs tidy output. This restates
+  Honest checks for the handed-over case because it was violated there first.
+- **Every handed command names the environment it runs in.** When more than
+  one execution environment exists (local terminal, remote host, admin
+  console, database prompt, platform CLI), label each command block with
+  where it executes, using the label set the project declares in its
+  `## Project-specific rules` section. The common way to damage a live
+  system is to run a correct command in the wrong environment.
+- **Explanation and commands travel together.** Every handed command carries
+  what it does and why it matters, in the same message. Neither half
+  substitutes for the other, and pressure about pace or complexity changes
+  the size of the step, never the presence of the explanation, the
+  verification, or the one-step boundary the project's rules set.
+
+
 ---
 
 ## Fetching from the web
@@ -819,86 +936,7 @@ to a new repo, carry the universal body verbatim and reset this section to
 the empty template below.
 
 <!-- One bullet per rule. Include the reason and the date for anything that
-     records an approved divergence, a locked value, or a past regression. -->
-
-Moved here verbatim from `PLAN.md` sections 1, 6, and 7 on 2026-07-29, so that
-`PLAN.md` holds only the blueprint and every behavioral rule lives in one file.
-Only the cross-references were reworded.
-
-### Teach, do not take over
-
-This is a learning project with a real deliverable. The human performs each
-infrastructure and WordPress step.
-
-- Explain what the step does and why it matters.
-- Give exact instructions labelled by where they run.
-- Stop after one step and let the human run it.
-- Answer questions before moving on.
-- Use read-only checks to verify the result.
-- Update `README.md` only after verification.
-- Do not SSH into the server or configure it for the human. The verification
-  commands under *Verify before documenting* that touch the server are run by
-  the human, who shares the output.
-- Do not generate the complete theme, site, or infrastructure in one pass.
-
-Editing files in this repository is the assistant's work. Running infrastructure,
-Git, WordPress, and database commands is the human's.
-
-**Divergence recorded 2026-07-29.** The universal body under *Command
-boundaries* makes repo-local and read-only commands the agent's own job. That
-holds for this repository's own tooling (`git status`, `rg`, `ls`, the test
-runner). It does **not** extend to the EC2 host, MySQL, or WP-CLI, where this
-rule wins and the human runs everything, including read-only checks. The reason
-is pedagogical rather than technical: the human is learning the stack, and an
-agent that runs the verification removes the step being taught.
-
-Record completed steps in this shape. This is the single definition of the
-build-log entry format, and `README.md` holds the entries themselves:
-
-```text
-#### Step N — <title> ✅
-**Goal:** one line.
-**Why it matters:** the reasoning.
-**Commands:** the commands that worked, labelled by location.
-**Verify:** the evidence.
-**Q&A:** the human's questions and answers.
-```
-
-The Q&A block is required, even when it says `none`.
-
-### Command labels
-
-- `# ON HOST` — the human's desktop terminal.
-- `# IN AWS CONSOLE` — the AWS Management Console.
-- `# ON AWS SERVER` — an SSH session on the EC2 Ubuntu host.
-- `# IN WP-ADMIN` — the WordPress dashboard.
-- `# IN MYSQL` — the `mysql>` prompt.
-- `# WP-CLI` — the `wp` command running as the web user.
-
-Once both environments exist, every server, MySQL, and WP-CLI instruction must name
-the environment it targets, and WP-CLI must always carry an explicit `--path`. The
-common way to damage a live WordPress site is to run a correct command in the wrong
-environment.
-
-### Verify before documenting
-
-Tool output is not enough when the filesystem or live service can be checked.
-Confirm with appropriate read-only evidence such as:
-
-- EC2 state and status checks
-- `ssh`, `hostnamectl`, `uname`, `lsb_release`, `free`, and `lsblk`
-- `systemctl status`
-- `curl`
-- `ls`, `stat`, and `rg`
-- WP-CLI list/get commands
-- MySQL read-only queries
-
-When a prediction and the live system disagree, correct the plan plainly and trust
-the live evidence.
-
-### Secrets and identifiers
-
-Passwords, private keys, credentials, live addresses, and unnecessary AWS resource
-IDs never belong in the repository. This restates tier 0 for this project's specific
-artefacts: Elastic IPs, instance IDs, and database passwords stay out of `PLAN.md`,
-`README.md`, and the build log.
+     records an approved divergence, a locked value, or a past regression.
+     Stack, platform, build commands, environment label sets, and domain
+     rules belong here and in PLAN.md or README.md, never in the universal
+     body above. -->
