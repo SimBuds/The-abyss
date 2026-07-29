@@ -5,110 +5,39 @@ repository tracks its infrastructure, custom theme, deployment workflow, and
 operational runbook.
 
 The project is worked one verified step at a time. The human runs each build step,
-and confirmed commands, evidence, and Q&A are added here afterward. See
-[`AGENTS.md`](AGENTS.md) for the working agreement. [`PLAN.md`](PLAN.md) holds the
-blueprint and current state, and is being rewritten from scratch.
+and confirmed commands, evidence, and Q&A are added here afterward.
 
-The build follows a local → staging → production lifecycle. Staging is stood up first
-and served over HTTP at the server's public IP; going live means connecting the
+## Where things live
+
+| Document | Holds |
+|---|---|
+| [`PLAN.md`](PLAN.md) | The blueprint. Canonical names, architecture decisions and their reasons, cost baseline, requirements, and the step-by-step roadmap with current state. |
+| [`AGENTS.md`](AGENTS.md) | The working agreement. The teach rule, command labels, the build-log entry shape, and the verify rule. |
+| `README.md` | This file. What the project is, and the build log below. |
+| `IMPLEMENT.md` | The agent's working file. Untracked and gitignored, so a fresh clone has none. |
+
+`PLAN.md` is the single source of truth for naming, architecture, and step state.
+Where this file and `PLAN.md` disagree, `PLAN.md` wins.
+
+## At a glance
+
+The build runs on AWS EC2 in `us-east-1`: a `t4g.small` ARM64 instance on Ubuntu
+Server 24.04 LTS, with Apache and `php-fpm`, MySQL on the same host, Cloudflare at
+the edge, and shell access through SSM Session Manager. Staging and production run
+as two vhosts on the one host. The reasoning behind each of those choices, and the
+approximate monthly cost, are in [`PLAN.md`](PLAN.md#current-architecture-decisions).
+
+The lifecycle is local, then staging, then production. Staging is stood up first
+and served over HTTP at the server's public IP. Going live means connecting the
 domain, TLS, and Cloudflare. Staging is never indexed and never holds real
 credentials.
 
-## Production target
+## Current state
 
-| Item | Initial choice |
-|---|---|
-| Platform | AWS EC2 |
-| Instance | `t4g.small` — 2 vCPU / 2 GiB, ARM64 |
-| OS | Canonical Ubuntu Server 24.04 LTS ARM64 |
-| Storage | 30 GiB encrypted `gp3` EBS |
-| Web stack | Apache `mpm_event` + `php-fpm` |
-| Application | WordPress |
-| Database | MySQL on the same EC2 host initially |
-| Edge | Cloudflare free tier, origin locked to Cloudflare |
-| Shell access | SSM Session Manager, no inbound port 22 |
-| Addressing | Elastic IP |
-| Mail | Amazon SES |
-| Server name | `the-abyss-web-01` |
-| Environments | Staging and production as two vhosts on the one host |
-| Production path | `/var/www/the-abyss` |
-| Staging path | `/var/www/the-abyss-staging` |
-
-### Why `t4g.small`
-
-A 1 GiB micro instance is tight when Ubuntu, Apache/PHP, WordPress, plugins, image
-processing, and MySQL share memory. `t4g.small` doubles that memory while retaining
-burstable, low-cost compute. The open-source WordPress stack supports ARM64; use
-`t3.small` only if a required dependency is x86-only.
-
-AWS currently includes 750 aggregate `t4g.small` compute hours per month through
-December 31, 2026. This is separate from the new-account $100 credit. Compute is the
-only part covered by that special trial; storage, public IPv4, snapshots, data, and
-surplus CPU can still use credits. The Free account plan ends after six months or
-when credits run out, so a live site must move to the Paid plan before that deadline.
-
-Authoritative references:
-
-- [EC2 Free Tier instance eligibility and credit model](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-free-tier-usage.html)
-- [EC2 T4g specifications and current trial](https://aws.amazon.com/ec2/instance-types/t4/)
-- [Detailed T4g trial terms](https://aws.amazon.com/ec2/faqs/#t4g-instances)
-- [Official Ubuntu ARM64 images](https://documentation.ubuntu.com/aws/en/latest/aws-how-to/instances/find-ubuntu-images/)
-- [EBS pricing](https://aws.amazon.com/ebs/pricing/)
-- [Public IPv4 pricing](https://aws.amazon.com/vpc/pricing/)
-
-At current US East list prices after the special compute trial, the simple baseline
-is approximately:
-
-| Item | Approximate monthly list price |
-|---|---:|
-| `t4g.small` compute | $12.26 |
-| 30 GiB `gp3` | $2.40 |
-| One public IPv4 address | $3.65 |
-| **Baseline** | **$18.31** |
-
-Prices vary by region and exclude snapshots, backup storage, excess data transfer,
-surplus CPU, tax, and domain registration. Check Billing and the AWS calculator
-before launch and again before the trial ends.
-
-### Initial database choice
-
-WordPress needs MySQL or MariaDB; this plan uses MySQL on the same EC2 host while
-traffic is near zero. MySQL must bind to localhost, with no public port 3306 rule.
-
-RDS becomes worthwhile when managed recovery, independent scaling, availability, or
-database isolation justifies a second always-on service. Until then, use automated
-logical database backups, encrypted EBS snapshots, off-instance copies, and a tested
-restore procedure.
-
-## Canonical naming
-
-| Use | Value |
-|---|---|
-| Project and WordPress public name | `The-abyss` |
-| Machine slug, theme directory, text domain | `the-abyss` |
-| PHP function / constant prefixes | `the_abyss_` / `THE_ABYSS_` |
-| Production database / user | `the_abyss_wp` / `abyss_wp` |
-| Staging database / user | `the_abyss_stg` / `abyss_stg` |
-
-## Product requirements
-
-- Finance and AI articles, guides, comparisons, and roundups.
-- `rel="sponsored nofollow"` on every affiliate link, applied by a theme filter
-  rather than by hand so it cannot be forgotten.
-- Visible FTC and Competition Bureau disclosures.
-- Author and review-date schema for finance content.
-- TLS, backups, monitoring, least privilege, and a documented restore process.
-- Self-hosted fonts and no unnecessary third-party font requests.
-
-## Repository state
-
-The existing `theme/` directory is an obsolete prototype with the wrong content
-model and visual system. It is not a deployable The-abyss theme and will not be
-blind-renamed. The production `the-abyss` theme will be created fresh after the AWS
-foundation is verified.
-
-The design-system export is not present in this workspace snapshot and must be
-restored before template implementation.
+The AWS account exists and nothing billable has been launched. Account security
+comes first, so the next step is root MFA and an IAM Identity Center admin user.
+The full roadmap and its checkboxes are in
+[`PLAN.md`](PLAN.md#status).
 
 ## Build log
 

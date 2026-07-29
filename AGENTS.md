@@ -940,3 +940,111 @@ the empty template below.
      Stack, platform, build commands, environment label sets, and domain
      rules belong here and in PLAN.md or README.md, never in the universal
      body above. -->
+
+### Teach, do not take over
+
+This is a learning project with a real deliverable. The human performs each AWS,
+infrastructure, and WordPress step.
+
+- Explain what the step does and why it matters.
+- **Always give the exact commands, in runnable form, labelled by where they
+  run.** Never withhold or summarise a command because the human is the one who
+  executes it. "Run this yourself" without the command is a failed instruction.
+- **Prefer commands over console click-paths.** Where a CLI exists, the commands
+  are the primary path and a click-path is an optional addition, never a
+  substitute. A click-path is the only acceptable form when no CLI equivalent
+  exists, such as accepting terms, a browser-only console setting, or the first
+  IAM user created before any CLI credentials exist.
+- Stop after one step and let the human run it.
+- Answer questions before moving on.
+- Give the read-only verification commands for the human to run, then wait for
+  the output. Do not run them.
+- Update `README.md` only after verification.
+- Do not SSH into the server or configure it for the human. The verification
+  commands under *Verify before documenting* that touch the server are run by
+  the human, who shares the output.
+- Do not generate the complete theme, site, or infrastructure in one pass.
+
+Editing files in this repository is the assistant's work. Running AWS,
+infrastructure, Git, WordPress, and database commands is the human's.
+
+**Divergence recorded 2026-07-29.** The universal body under *Command
+boundaries* makes repo-local and read-only commands the agent's own job. That
+holds for this repository's own tooling (`git status`, `rg`, `ls`, the test
+runner). It does **not** extend to the AWS account, the EC2 host, MySQL, or
+WP-CLI, where this rule wins and the human runs everything, including read-only
+checks. The reason is pedagogical rather than technical: the human is learning
+the stack, and an agent that runs the verification removes the step being
+taught.
+
+Record completed steps in this shape. This is the single definition of the
+build-log entry format, and `README.md` holds the entries themselves:
+
+```text
+#### Step N — <title> ✅
+**Goal:** one line.
+**Why it matters:** the reasoning.
+**Commands:** the commands that worked, labelled by location.
+**Verify:** the evidence.
+**Q&A:** the human's questions and answers.
+```
+
+The Q&A block is required, even when it says `none`.
+
+### Command labels
+
+- `# ON HOST` is the human's desktop terminal.
+- `# IN AWS CONSOLE` is the AWS Management Console.
+- `# AWS CLI` is the `aws` command on the human's desktop terminal, run under an
+  active `aws sso login` session.
+- `# ON AWS SERVER` is an SSH session on the EC2 Ubuntu host.
+- `# IN WP-ADMIN` is the WordPress dashboard.
+- `# IN MYSQL` is the `mysql>` prompt.
+- `# WP-CLI` is the `wp` command running as the web user.
+
+This is the label set the universal body under *Commands handed to the human*
+requires this project to declare.
+
+Once both environments exist, every server, MySQL, and WP-CLI instruction must name
+the environment it targets, and WP-CLI must always carry an explicit `--path`. The
+common way to damage a live WordPress site is to run a correct command in the wrong
+environment.
+
+### Verify before documenting
+
+Tool output is not enough when the filesystem or live service can be checked.
+Confirm with appropriate read-only evidence such as:
+
+- EC2 state and status checks
+- `ssh`, `hostnamectl`, `uname`, `lsb_release`, `free`, and `lsblk`
+- `systemctl status`
+- `curl`
+- `ls`, `stat`, and `rg`
+- WP-CLI list/get commands
+- MySQL read-only queries
+
+When a prediction and the live system disagree, correct the plan plainly and trust
+the live evidence.
+
+### Shell access, and why step 1 opens port 22
+
+**Approved divergence, 2026-07-29.** The architecture decision is SSM Session
+Manager with no inbound port 22, and that remains the end state. The EC2 launch
+step nevertheless opens port 22 to Casey's current IP, alongside the SSM instance
+profile.
+
+The reason is recovery, not convenience. An instance whose SSM agent fails to
+register is unreachable, and on a fresh host the only remedy is termination and
+relaunch. Port 22 makes that failure diagnosable. The following step confirms the
+instance appears in Systems Manager, then removes the rule.
+
+Do not "fix" the launch step to match the architecture table by closing port 22
+there. The two are reconciled deliberately, and the table describes where the build
+lands rather than how it starts.
+
+### Secrets and identifiers
+
+Passwords, private keys, credentials, live addresses, and unnecessary AWS resource
+IDs never belong in the repository. This restates tier 0 for this project's specific
+artefacts: Elastic IPs, instance IDs, AWS account numbers, IAM access keys, and
+database passwords stay out of `PLAN.md`, `README.md`, and the build log.
