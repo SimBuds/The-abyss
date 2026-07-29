@@ -26,6 +26,10 @@ wp-content/plugins/
 *.tar.gz
 *.zip
 
+# Agent working file. AGENTS.md requires IMPLEMENT.md to stay untracked: it is the
+# working file of whoever is mid-task, not a repo artefact.
+IMPLEMENT.md
+
 # Local tooling.
 node_modules/
 vendor/
