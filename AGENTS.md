@@ -167,6 +167,15 @@ trivial-tier exemption stated there.
 - Re-state in three to six bullets: the inherited decisions (every choice
   Casey has made so far this session), and the current state per
   `IMPLEMENT.md` (phases done, phase in progress, phases remaining).
+- At the same checkpoints, re-sync the working tree, not only `IMPLEMENT.md`:
+  run `git status --short` and `git log --oneline -1` and compare them against
+  the last state read. The human edits and commits between turns, so
+  conversational memory of repo state is stale by default. If HEAD has moved,
+  read what the new commit changed in any pillar file before building on it.
+  (Added 2026-07-29 after four mid-session drifts, including a commit that
+  emptied a section the active plan depended on and a `.gitignore` reset that
+  made credential files committable, were each discovered late and by
+  accident.)
 
 ### Stage 4: execute one phase
 
@@ -199,6 +208,13 @@ trivial-tier exemption stated there.
   mid-phase to ask a decision-gate question is its own sanctioned yield and
   does not use this line. Ending a phase without this line counts as an
   incomplete phase.
+
+  The final variant carries a precondition. Before offering it, list every
+  phase in `IMPLEMENT.md` with its status. If any phase is planned or in
+  progress, the final line is prohibited and the per-phase line is used
+  instead. (Added 2026-07-29 after the final line was offered with two phases
+  outstanding, approval wiped the working file, and the pending work had to
+  be reconstructed from the conversation.)
 
 ### Commit checkpoint between phases
 
@@ -385,6 +401,31 @@ actions) are tier 0 above. In addition:
 
 ---
 
+## Stateful environments and persistence
+
+Some environments mix durable and disposable storage: container image layers
+versus named volumes, an instance's root disk versus attached storage, a
+shell session versus a config file. (Added 2026-07-29 after three container
+rebuilds each destroyed a different hand-configured component, because the
+image-versus-volume split was mapped one loss at a time instead of up front.)
+
+- **Audit the persistence split before the first hand-made change.**
+  Enumerate which paths survive a rebuild, restart, or reprovision and which
+  do not, and record the table in the tracked docs. The audit is a
+  precondition of the work, not a lesson extracted from its failures.
+- **Route every change to its durable home at the moment it is made.** A
+  change landed in a disposable location gets codified into its durable form
+  in the same phase, never batched into a cleanup step at the end. Anything
+  awaiting codification when a rebuild runs is presumed lost.
+- **A config file that crosses more than one interpretation layer is a real
+  file, copied into place.** Generating it from inline strings stacks
+  escaping rules (the build tool, shell quoting, the target's own variables),
+  and one wrong escape ships a corrupt file. A copied file passes through
+  every layer untouched. (Added 2026-07-29 after an escaped variable in a
+  generated vhost survived as a literal backslash and broke the build.)
+
+---
+
 ## Verification and testing
 
 - The project's test command is the gate. Run it. "The tests probably still
@@ -445,6 +486,12 @@ the failures that mattered most.
   whole object and read it, rather than filtering to the fields a hypothesis
   expects. A narrow query can return a true result that reads as the wrong
   answer, and a confident misreading of true output is worse than no check.
+- **A check must be able to fail, and on the right thing.** Before trusting a
+  pattern match as verification, confirm it matches the value itself and not
+  a comment, docblock, or neighbour that happens to carry the same token. A
+  check that would also pass against a broken target verifies nothing.
+  (Added 2026-07-29 after a version check matched a docblock line and
+  reported success without reading any version.)
 
 ### Diagnostic loop
 
@@ -460,6 +507,15 @@ When debugging a live failure, especially on a system the human operates:
 - **Read what came back, not what was expected.** When output surprises,
   the next action is to widen the view of the same object, not to re-run the
   narrow query that produced the surprise.
+- **The first capture of a failing surface is unfiltered.** Take the whole
+  object: body and headers both, the full log, the complete row. Filters
+  such as `grep`, header-only fetches, and `head` on an error stream are for
+  confirming a failure already understood, never for finding one, and a
+  second filtered query after a surprising filtered result is prohibited.
+  This restates the over-include rule for the live-debugging sequence
+  because it was violated there twice in one session, once by a header-only
+  fetch hiding a 500's explanation in the body and once by a log `grep`
+  hiding the `ERROR:` lines it was searching for. (Added 2026-07-29.)
 
 ---
 
@@ -823,6 +879,16 @@ down the wrong diagnosis.)
   substitutes for the other, and pressure about pace or complexity changes
   the size of the step, never the presence of the explanation, the
   verification, or the one-step boundary the project's rules set.
+- **A capture and its consumer travel in one block.** A variable checked in
+  one pasted block and consumed in another expands empty when the blocks run
+  in different sessions, and the file it writes looks complete. Merge the
+  blocks, or pass the value through a file on disk, which survives session
+  boundaries the way a shell variable does not. (Added 2026-07-29 after a
+  salts variable expanded to nothing across a session boundary and wrote a
+  config with blank secrets, caught only by a later count.)
+- **Handed blocks are safe to run twice wherever feasible.** Humans re-paste
+  and scrollback gets replayed. Prefer idempotent forms, and when a block is
+  not safe to repeat, say so directly above it.
 
 
 ---
@@ -894,6 +960,8 @@ is the quick scan, kept short and memorable on purpose.
   okay.
 - Bundling a refactor into a bugfix, or a bugfix into a feature.
 - "It parses, so it works." Run it and read the result.
+- Filtering the first look at a failure to what the hypothesis expects.
+- Discovering what survives a rebuild one destroyed change at a time.
 - Dropping a scoped rule into the global file "just for now".
 - Adding a second block for a target the file already defines.
 - Changing a shared default to satisfy one caller.
@@ -943,8 +1011,8 @@ the empty template below.
 
 ### Teach, do not take over
 
-This is a learning project with a real deliverable. The human performs each AWS,
-infrastructure, and WordPress step.
+This is a learning project with a real deliverable. The human performs each
+infrastructure and WordPress step, whichever provider hosts it.
 
 - Explain what the step does and why it matters.
 - **Always give the exact commands, in runnable form, labelled by where they
@@ -954,7 +1022,7 @@ infrastructure, and WordPress step.
   are the primary path and a click-path is an optional addition, never a
   substitute. A click-path is the only acceptable form when no CLI equivalent
   exists, such as accepting terms, a browser-only console setting, or the first
-  IAM user created before any CLI credentials exist.
+  cloud identity created before any CLI credentials exist.
 - Stop after one step and let the human run it.
 - Answer questions before moving on.
 - Give the read-only verification commands for the human to run, then wait for
@@ -965,17 +1033,17 @@ infrastructure, and WordPress step.
   the human, who shares the output.
 - Do not generate the complete theme, site, or infrastructure in one pass.
 
-Editing files in this repository is the assistant's work. Running AWS,
+Editing files in this repository is the assistant's work. Running
 infrastructure, Git, WordPress, and database commands is the human's.
 
 **Divergence recorded 2026-07-29.** The universal body under *Command
 boundaries* makes repo-local and read-only commands the agent's own job. That
 holds for this repository's own tooling (`git status`, `rg`, `ls`, the test
-runner). It does **not** extend to the AWS account, the EC2 host, MySQL, or
-WP-CLI, where this rule wins and the human runs everything, including read-only
-checks. The reason is pedagogical rather than technical: the human is learning
-the stack, and an agent that runs the verification removes the step being
-taught.
+runner). It does **not** extend to the hosting account, the container, the
+droplet, MySQL, or WP-CLI, where this rule wins and the human runs everything,
+including read-only checks. The reason is pedagogical rather than technical:
+the human is learning the stack, and an agent that runs the verification
+removes the step being taught.
 
 Record completed steps in this shape. This is the single definition of the
 build-log entry format, and `README.md` holds the entries themselves:
@@ -994,9 +1062,15 @@ The Q&A block is required, even when it says `none`.
 ### Command labels
 
 - `# ON HOST` is the human's desktop terminal.
-- `# IN AWS CONSOLE` is the AWS Management Console.
-- `# AWS CLI` is the `aws` command on the human's desktop terminal, run under an
-  active `aws sso login` session.
+- `# IN CONTAINER` is a shell inside the local Docker container, reached with
+  `ssh -p 2222 root@localhost` or `docker compose exec web bash`. This is the
+  only environment that currently exists, and build steps 6 and 7 run in it
+  regardless of the eventual hosting choice. (Restored 2026-07-29 after a
+  label-set migration deleted it while three build-log entries and the two
+  remaining local build steps still depended on it.)
+- `# IN AWS CONSOLE` and `# AWS CLI` were removed 2026-07-29 when hosting was
+  decided for the droplet. They are archived with `# ON AWS SERVER` in
+  `PLAN.md` under the deferred AWS candidate and return together if it does.
 - `# ON DROPLET` is an SSH session on the DigitalOcean droplet. This host also
   serves a live portfolio site, so every command names it explicitly.
 - `# IN DO CONSOLE` is the DigitalOcean control panel.
@@ -1007,19 +1081,19 @@ The Q&A block is required, even when it says `none`.
 This is the label set the universal body under *Commands handed to the human*
 requires this project to declare.
 
-Once both environments exist, every server, MySQL, and WP-CLI instruction must name
-the environment it targets, and WP-CLI must always carry an explicit `--path`. The
-common way to damage a live WordPress site is to run a correct command in the wrong
-environment.
+More than one environment already exists, and one of them serves a live site.
+Every server, MySQL, and WP-CLI instruction names the environment it targets,
+and WP-CLI always carries an explicit `--path`. The common way to damage a live
+WordPress site is to run a correct command in the wrong environment.
 
 ### Verify before documenting
 
 Tool output is not enough when the filesystem or live service can be checked.
 Confirm with appropriate read-only evidence such as:
 
-- EC2 state and status checks
+- the provider's own status view of the host
 - `ssh`, `hostnamectl`, `uname`, `lsb_release`, `free`, and `lsblk`
-- `systemctl status`
+- `systemctl status` on the droplet, `service <name> status` in the container
 - `curl`
 - `ls`, `stat`, and `rg`
 - WP-CLI list/get commands
@@ -1028,25 +1102,12 @@ Confirm with appropriate read-only evidence such as:
 When a prediction and the live system disagree, correct the plan plainly and trust
 the live evidence.
 
-### Shell access, and why step 1 opens port 22
-
-**Approved divergence, 2026-07-29.** The architecture decision is SSM Session
-Manager with no inbound port 22, and that remains the end state. The EC2 launch
-step nevertheless opens port 22 to Casey's current IP, alongside the SSM instance
-profile.
-
-The reason is recovery, not convenience. An instance whose SSM agent fails to
-register is unreachable, and on a fresh host the only remedy is termination and
-relaunch. Port 22 makes that failure diagnosable. The following step confirms the
-instance appears in Systems Manager, then removes the rule.
-
-Do not "fix" the launch step to match the architecture table by closing port 22
-there. The two are reconciled deliberately, and the table describes where the build
-lands rather than how it starts.
-
 ### Secrets and identifiers
 
-Passwords, private keys, credentials, live addresses, and unnecessary AWS resource
-IDs never belong in the repository. This restates tier 0 for this project's specific
-artefacts: Elastic IPs, instance IDs, AWS account numbers, IAM access keys, and
-database passwords stay out of `PLAN.md`, `README.md`, and the build log.
+Passwords, private keys, credentials, live addresses, and unnecessary provider
+resource IDs never belong in the repository. This restates tier 0 for this
+project's specific artefacts: the droplet's ID and IP address (which also
+locates the live portfolio site), DigitalOcean API tokens, database passwords,
+and the banked AWS account's identifiers (Elastic IPs, instance IDs, account
+numbers, and access keys) stay out of `PLAN.md`, `README.md`, and the build
+log.

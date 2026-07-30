@@ -99,6 +99,20 @@ authentication, so the connection habit matches the eventual host. Only the
 public key is mounted, read-only. `docker compose exec web bash` remains the
 fallback for when SSH itself is the thing that is broken.
 
+**The container's host keys live in a named volume**, mounted at
+`/etc/ssh/keys`, and the entrypoint generates them on first run only. Keys
+written into `/etc/ssh` are image content and therefore new on every rebuild,
+which made the client refuse to connect with `REMOTE HOST IDENTIFICATION HAS
+CHANGED` and required `ssh-keygen -R` each time. A real server keeps its identity
+across a reprovision, so the container does too.
+
+**The entrypoint provisions WordPress core files when `/var/www` is empty**, so
+the environment is reproducible from scratch with one command. It deliberately
+does not create `wp-config.php`. That file holds the database password, and
+generating it would mean sourcing a credential from the image, the compose file,
+or an env var beside them, which tier 0 forbids. Creating it is a manual step,
+recorded in the `README.md` build log under step 4.
+
 **What survives a rebuild, audited at step 4.** This cost three rebuilds to
 learn, one component at a time, so it is recorded rather than rediscovered. The
 image holds the packages and everything under `/etc`, and a rebuild discards all
@@ -164,13 +178,35 @@ font stack, or a pixel value that a token already carries.
 - `README.md` still describes an AWS build under *At a glance*. It is corrected
   after the local environment is proven, not before.
 
-## Hosting: undecided
+## Hosting: the existing DigitalOcean droplet
 
-No provider is chosen. Nothing in the roadmap before Step 8 depends on one.
+Decided 2026-07-29, ahead of the Step 8 checkpoint the roadmap planned. The
+deciding fact was not on the criteria list: a droplet already exists, already
+paid for, serving the live portfolio site. Marginal cost is zero, and
+everything the container taught (SSH, Apache vhosts, php-fpm, MySQL, and
+WordPress installed by hand) transfers directly. AWS is demoted to the
+deferred candidate below with its banked work intact. The criteria below are
+kept as the record Step 8 would have used, and they govern any future
+re-decision.
+
+**Shared-host constraint.** The droplet serves a live portfolio site, and
+that inverts the ground rules the container established. Ports 80 and 443 are
+occupied, a vhost configuration and TLS already exist and belong to another
+product, and MySQL may already hold databases and users that are not this
+project's. Commands that were safe in the fresh container are destructive
+here, including `a2dissite 000-default`, any web server reload against an
+unverified config, and any database or user creation before listing what
+exists. Every mutating droplet step is risky tier under `AGENTS.md`, asked
+before each action. The first droplet step is therefore a read-only inventory
+of what the portfolio site currently uses (ports, vhosts, web server and PHP
+versions, MySQL layout, TLS), taken and recorded before anything is installed
+or changed. A mistake on this host takes down a live site that is not
+The-abyss.
 
 ### Decision criteria
 
-Decide at Step 8, against the stack as actually built:
+Kept as the record Step 8 would have used. These no longer decide anything, and
+they govern any future re-decision:
 
 - Monthly cost at the real resource size, after any trial period ends.
 - How much of the learning already done transfers.
@@ -178,7 +214,7 @@ Decide at Step 8, against the stack as actually built:
 - Whether a managed database is wanted later.
 - Time to a working host from a standing start.
 
-### Candidate: AWS EC2
+### Deferred candidate: AWS EC2
 
 Fuller reasoning, retained from when this was the settled plan.
 
@@ -232,11 +268,44 @@ chosen at Step 8:
 Not done: the Identity Center admin group, user, permission set, and assignment.
 Root is still the only usable identity.
 
-### Candidate: DigitalOcean droplet
+Archived from `AGENTS.md` on 2026-07-29 when hosting was decided for the
+droplet. If AWS is ever chosen instead, restore all of the following to the
+project rules together, not just the parts that seem relevant at the time.
 
-Not yet researched. To fill in at Step 8: droplet size and price, Ubuntu 24.04
-availability, backup and snapshot pricing, whether a managed database is wanted,
-and how shell access and firewalling are handled.
+Command labels: `# IN AWS CONSOLE` is the AWS Management Console. `# AWS CLI`
+is the `aws` command on the human's desktop terminal, run under an active
+`aws sso login` session. `# ON AWS SERVER` is an SSH session on the EC2
+Ubuntu host.
+
+The port 22 divergence, approved 2026-07-29. The architecture decision is SSM
+Session Manager with no inbound port 22, and that remains the end state. The
+EC2 launch step nevertheless opens port 22 to Casey's current IP, alongside
+the SSM instance profile. The reason is recovery, not convenience. An
+instance whose SSM agent fails to register is unreachable, and on a fresh
+host the only remedy is termination and relaunch. Port 22 makes that failure
+diagnosable. The following step confirms the instance appears in Systems
+Manager, then removes the rule. Do not "fix" the launch step to match the
+architecture table by closing port 22 there. The two are reconciled
+deliberately, and the table describes where the build lands rather than how
+it starts.
+
+### What the Step 9 inventory must record
+
+The droplet is the chosen host rather than a candidate, so these are no longer
+research questions. They are what the read-only inventory answers before
+anything is installed, and several of them belong to the portfolio site rather
+than to this project:
+
+- Droplet size, region, and what the existing site needs of it.
+- Ubuntu version, and whether it matches the container's 24.04.
+- Web server and PHP versions already installed, and which vhosts are enabled.
+- What occupies ports 80 and 443, and how TLS is currently issued and renewed.
+- MySQL or MariaDB, its version, and which databases and users already exist.
+- Backup and snapshot arrangements already in place.
+- How shell access and firewalling are configured today.
+
+Recording the answers is Step 9's deliverable. Nothing is changed while taking
+them.
 
 ## Status
 
@@ -256,10 +325,9 @@ Phase A, the local environment:
       created.**
 - [x] **Step 4, WordPress installed, configured by constant, and serving at
       `http://localhost:8080`.**
-- [ ] Step 5, finish codifying. Apache, `php-fpm`, its extensions, the vhost, and
-      MySQL all landed in the Dockerfile during steps 2 to 4. Remaining: persist
-      the SSH host keys across rebuilds, and decide whether a from-scratch
-      machine self-provisions WordPress or documents the manual install.
+- [x] **Step 5, codification complete. The whole stack is in the Dockerfile, SSH
+      host keys persist across rebuilds, and the entrypoint provisions WordPress
+      core when the volume is empty.**
 
 Phase B, the theme:
 
@@ -269,9 +337,13 @@ Phase B, the theme:
 
 Phase C, hosting:
 
-- [ ] Step 8, decide the hosting target against the criteria above.
-- [ ] Step 9 onward, provision, deploy, TLS, backups, and launch. Planned once
-      Step 8 lands, because the steps depend on the provider.
+- [x] **Step 8, hosting decided: the existing DigitalOcean droplet.** Decided
+      ahead of schedule on 2026-07-29. The decision record and the shared-host
+      constraint are under *Hosting* above.
+- [ ] Step 9, read-only inventory of the droplet and the portfolio site it
+      serves. Nothing is installed or changed in this step.
+- [ ] Step 10 onward, planned against the inventory once it exists, because a
+      shared host's steps depend on what is already running there.
 
 Step 6 gates Step 7, because template implementation needs the token layer
 settled first. Step 5 gates nothing but should not be skipped, since an

@@ -353,3 +353,73 @@ reached the database, since a credential failure would be a 500 instead.
 in a shell session where the variable had never been set. Rewritten using
 `sed '/DB_COLLATE/r file'`, which reads from a file rather than through a shell
 variable and so cannot silently expand to nothing.
+
+#### Step 5 — codification complete ✅
+
+**Goal:** the whole environment reproducible from `docker compose up -d --build`,
+with a stable SSH identity across rebuilds.
+
+**Why it matters:** every hand-made change inside `/etc` is destroyed by a
+rebuild, and finding that out one component at a time cost three rebuilds during
+steps 2 to 4. The split is now audited and recorded: packages and `/etc` are image
+content and must be codified, while `/var/www` and `/var/lib/mysql` are named
+volumes and must not be. Host keys were the last piece of churn, forcing an
+`ssh-keygen -R` after every build.
+
+**Commands:** no hand-run commands. This step is entirely repository files.
+
+`docker/Dockerfile` holds Apache, `php-fpm`, seven PHP extensions,
+`mysql-server`, the sshd drop-in, and the timezone pin. `docker/the-abyss.conf`
+is the vhost, COPYed in rather than generated, which also fixes the
+`${APACHE_LOG_DIR}` escaping problem because Docker never substitutes inside a
+copied file. `compose.yaml` adds a `sshkeys` volume at `/etc/ssh/keys`.
+`docker/entrypoint.sh` generates host keys on first run only, starts MySQL,
+`php-fpm`, and Apache, and provisions WordPress core when `/var/www` is empty.
+
+**Verify:** two consecutive rebuilds, because one proves nothing.
+
+First run, eight lines:
+
+```text
+entrypoint: authorized_keys installed from /tmp/host-key.pub
+entrypoint: generated ed25519 host key (first run)
+entrypoint: generated rsa host key (first run)
+entrypoint: generated ecdsa host key (first run)
+entrypoint: started mysql
+entrypoint: started php8.3-fpm
+entrypoint: started apache2
+entrypoint: WordPress present at /var/www/the-abyss
+```
+
+After `docker compose up -d --build --force-recreate`, six lines, with the three
+`generated ... host key` entries absent. Their absence is the proof: the loop
+found the keys already in the volume. SSH then connected with no fingerprint
+prompt, no warning, and no `ssh-keygen -R`, logging
+`Accepted publickey for root`.
+
+`wp-config.php` survived at `-rw-r----- www-data www-data 1319`, timestamp
+unchanged, confirming the rebuild did not touch the volume.
+
+**Q&A:**
+
+*Why remove `ssh-keygen -A` from the build instead of keeping it as a fallback?*
+Two mechanisms generating host keys makes it ambiguous which set sshd loads, and
+the point of the change is that the container has exactly one identity. The
+entrypoint generates them before sshd starts, so sshd never sees a missing file.
+
+*Why does the entrypoint provision WordPress core but not `wp-config.php`?* That
+file holds the database password. Generating it would mean sourcing a credential
+from the image, `compose.yaml`, or an env var beside them in the repository, which
+tier 0 forbids. Creating it stays a manual step, documented under step 4 above.
+
+*SSH failed once with `kex_exchange_identification: read: Connection reset by
+peer`.* A race, not a fault. Docker publishes the port before sshd finishes
+binding to it, so a connection in that window is accepted by the proxy and reset.
+The full log showed every startup stage completing. Worth distinguishing from
+`Connection refused`, which means nothing is listening at all, and from a
+`publickey` rejection, which means sshd is running and declined the key.
+
+*A `grep entrypoint` filter on the logs hid the diagnosis.* Errors in the
+entrypoint print `ERROR:` to stderr, not `entrypoint:`, so the filter removed
+exactly the line that would have explained a failure. When investigating, read
+the whole log rather than the slice a hypothesis expects.

@@ -51,6 +51,15 @@ services:
       # write to it.
       - ${HOME}/.ssh/id_ed25519.pub:/tmp/host-key.pub:ro
 
+      # The container's own SSH host keys, which are its identity to your
+      # client. On a volume so a rebuild does not change it. Keys baked into the
+      # image are new on every build, and your client correctly refuses a server
+      # whose identity changed, which meant running ssh-keygen -R after each
+      # rebuild. A real server keeps its host keys across a reprovision, and this
+      # makes the container behave the same way.
+      - sshkeys:/etc/ssh/keys
+
 volumes:
   wordpress:
   mysql:
+  sshkeys:

@@ -33,6 +33,23 @@ install -d -m 700 -o root -g root /root/.ssh
 install -m 600 -o root -g root "$KEY_SRC" "$KEY_DST"
 echo "entrypoint: authorized_keys installed from $KEY_SRC"
 
+# --- host keys --------------------------------------------------------------
+# The container's own identity, as opposed to the key that authenticates you to
+# it. These live in a named volume so they outlive a rebuild. Keys written into
+# /etc/ssh would be image content, changing on every build, and the client is
+# right to refuse a server whose identity changed. Generating them once here is
+# the container equivalent of a real server keeping its host keys across a
+# reprovision.
+KEYDIR=/etc/ssh/keys
+install -d -m 700 -o root -g root "$KEYDIR"
+
+for t in ed25519 rsa ecdsa; do
+  if [ ! -f "$KEYDIR/ssh_host_${t}_key" ]; then
+    ssh-keygen -q -t "$t" -f "$KEYDIR/ssh_host_${t}_key" -N ''
+    echo "entrypoint: generated $t host key (first run)"
+  fi
+done
+
 # --- database ---------------------------------------------------------------
 # /var/lib/mysql is a named volume, so its contents outlive the image. A rebuild
 # can therefore hand MySQL a data directory created by a previous container. The
@@ -61,5 +78,44 @@ echo "entrypoint: started $FPM_SVC"
 
 service apache2 start
 echo "entrypoint: started apache2"
+
+# --- WordPress core ---------------------------------------------------------
+# /var/www is a named volume, so on a fresh machine it starts empty and the site
+# would 404 with no indication why. Provisioning core files here makes the
+# environment reproducible with one command.
+#
+# wp-config.php is deliberately NOT created. It holds the database password, and
+# generating it would mean sourcing that credential from the image, this file, or
+# an env var sitting next to them in the repository. Tier 0 forbids secrets at
+# rest, so creating it stays a manual step, documented in the README build log
+# under step 4.
+WP_DIR=/var/www/the-abyss
+
+if [ -f "$WP_DIR/index.php" ]; then
+  echo "entrypoint: WordPress present at $WP_DIR"
+else
+  echo "entrypoint: no WordPress at $WP_DIR, downloading core"
+  TMP="$(mktemp -d)"
+
+  # -f so an HTTP error is a failure rather than an error page saved as a
+  # tarball, which would surface later as an unrecognised archive.
+  if ! curl -fsSL https://wordpress.org/latest.tar.gz | tar -xz -C "$TMP"; then
+    echo "ERROR: could not download or extract WordPress." >&2
+    echo "Check network access from the container. Refusing to start Apache" >&2
+    echo "over an empty document root, which would look like a routing bug." >&2
+    rm -rf "$TMP"
+    exit 1
+  fi
+
+  install -d -o www-data -g www-data "$WP_DIR"
+  cp -a "$TMP/wordpress/." "$WP_DIR/"
+  rm -rf "$TMP"
+
+  # Apache and php-fpm run as www-data, which needs to own these to write
+  # uploads, install plugins, and self-update.
+  chown -R www-data:www-data "$WP_DIR"
+  echo "entrypoint: WordPress core installed"
+  echo "entrypoint: wp-config.php NOT created (holds credentials, see README step 4)"
+fi
 
 exec "$@"

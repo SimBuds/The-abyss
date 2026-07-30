@@ -126,12 +126,15 @@ RUN mkdir -p /var/www/the-abyss \
  && apache2ctl configtest
 
 # sshd refuses to start without its privilege-separation directory, and the
-# package does not create it in a container build. ssh-keygen -A generates the
-# host keys that identify this container to your client. Those keys change on
-# every rebuild, so your client will warn that the host identity changed. Clear
-# the old entry with: ssh-keygen -R '[localhost]:2222'
-RUN mkdir -p /run/sshd \
- && ssh-keygen -A
+# package does not create it in a container build.
+#
+# No host keys are generated here on purpose. Keys written to /etc/ssh are image
+# content, so every rebuild produced a new server identity and the client
+# correctly refused to connect with REMOTE HOST IDENTIFICATION HAS CHANGED. The
+# entrypoint now generates them into /etc/ssh/keys, which compose mounts as a
+# named volume, so the container keeps one identity across rebuilds exactly as a
+# real server keeps its identity across reprovisioning.
+RUN mkdir -p /run/sshd
 
 # Ubuntu's sshd_config includes /etc/ssh/sshd_config.d/*.conf from its first
 # line, and the first value obtained for a keyword wins, so a drop-in here
@@ -141,11 +144,16 @@ RUN mkdir -p /run/sshd \
 # credential at rest and nothing to guess. Root login matches what a fresh
 # droplet gives you. Creating a deploy user and disabling root is deliberate
 # later hardening, at PLAN.md step 5, so that it is learned as hardening.
+# The HostKey paths point into the named volume mounted at /etc/ssh/keys. The
+# entrypoint creates them before sshd starts, so sshd never sees a missing file.
 RUN printf '%s\n' \
       'PermitRootLogin prohibit-password' \
       'PasswordAuthentication no' \
       'PubkeyAuthentication yes' \
       'AuthorizedKeysFile .ssh/authorized_keys' \
+      'HostKey /etc/ssh/keys/ssh_host_ed25519_key' \
+      'HostKey /etc/ssh/keys/ssh_host_rsa_key' \
+      'HostKey /etc/ssh/keys/ssh_host_ecdsa_key' \
     > /etc/ssh/sshd_config.d/10-the-abyss.conf
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
