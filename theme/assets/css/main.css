@@ -1,47 +1,412 @@
+/**
+ * The-abyss front-end styles.
+ *
+ * Every colour, font, spacing, radius, and shadow value here is copied from the
+ * Modernist token sheet at
+ * design/_ds/modernist-747f06d4-a5fd-4b38-bebe-4878e82695b0/styles.css,
+ * which PLAN.md marks as the locked source of truth. Do not hand-pick a hex, a
+ * font stack, or a pixel value that a token already carries.
+ *
+ * Modernist in one line: flat and architectural, Archivo throughout, near-mono
+ * red on a light ground, visible modular grid, zero corner radius, strong 2px
+ * rules, photography in black and white, everything flush left.
+ */
+
 :root {
-  --fb-red: #e11d22;
-  --fb-red-hover: #c4171c;
-  --fb-ink: #16181d;
-  --fb-muted: #6a6d75;
-  --fb-fog: #f6f6f7;
-  --fb-border: #e6e6e8;
-  --fb-max: 1240px;
+	/* Roles */
+	--abyss-color-bg: #f3f2f2;
+	--abyss-color-surface: #eae9e9;
+	--abyss-color-text: #201e1d;
+	--abyss-color-accent: #ec3013;
+
+	/* The token is color-mix(in srgb, #201e1d 40%, transparent). Same colour,
+	   written as rgba so it resolves everywhere including the editor. */
+	--abyss-color-divider: rgba(32, 30, 29, 0.4);
+
+	/* Neutral ramp, OKLCH-generated on one shared lightness scale. */
+	--abyss-color-neutral-100: #f8f4f4;
+	--abyss-color-neutral-200: #eae7e7;
+	--abyss-color-neutral-300: #d7d3d3;
+	--abyss-color-neutral-400: #bab6b6;
+	--abyss-color-neutral-500: #9b9797;
+	--abyss-color-neutral-600: #7d7979;
+	--abyss-color-neutral-700: #605d5d;
+	--abyss-color-neutral-800: #444141;
+	--abyss-color-neutral-900: #2d2b2b;
+
+	/* Accent ramp. 100-300 for tinted fills and subtle borders, 500 as base,
+	   700-900 for text on tinted fills and pressed states. */
+	--abyss-color-accent-100: #fff2ef;
+	--abyss-color-accent-200: #ffe0d9;
+	--abyss-color-accent-300: #ffc4b8;
+	--abyss-color-accent-400: #ff9783;
+	--abyss-color-accent-500: #ff563c;
+	--abyss-color-accent-600: #dd2b0f;
+	--abyss-color-accent-700: #ae1800;
+	--abyss-color-accent-800: #7c1405;
+	--abyss-color-accent-900: #4d170e;
+
+	--abyss-font-heading: 'Archivo', system-ui, sans-serif;
+	--abyss-font-heading-weight: 800;
+	--abyss-font-body: 'Archivo', system-ui, sans-serif;
+
+	/* The token sheet defines 1, 2, 3, 4, 6, and 8. There is no 5 or 7, and
+	   none is invented here. */
+	--abyss-space-1: 4px;
+	--abyss-space-2: 8px;
+	--abyss-space-3: 12px;
+	--abyss-space-4: 16px;
+	--abyss-space-6: 24px;
+	--abyss-space-8: 32px;
+
+	/* Zero on purpose. Modernist's do-not list opens with "do not round a
+	   corner anywhere". */
+	--abyss-radius-sm: 0px;
+	--abyss-radius-md: 0px;
+	--abyss-radius-lg: 0px;
+
+	--abyss-shadow-sm: 0 1px 2px rgba(45, 43, 43, 0.14);
+	--abyss-shadow-md: 0 3px 10px rgba(45, 43, 43, 0.16);
+	--abyss-shadow-lg: 0 12px 32px rgba(45, 43, 43, 0.22);
+
+	/* Not from the token sheet. Modernist specifies a modular grid but no
+	   content width, so these are project decisions recorded as a documented
+	   gap rather than as tokens. Set 2026-07-29: 960 content, 1440 wide.
+	   theme.json carries the same pair for the block editor. */
+	--abyss-width-content: 960px;
+	--abyss-width-wide: 1440px;
+
+	/* Prose measure, deliberately narrower than the content width. 960px at
+	   15px Archivo runs to roughly 120 characters per line, well past the
+	   readable range for sustained reading, and long-form articles are the
+	   product. The grid keeps its width, paragraphs do not. Expressed in ch so
+	   it tracks the font rather than a fixed pixel guess. */
+	--abyss-prose-width: 70ch;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+/**
+ * Class map: design readme name -> theme name.
+ *
+ * Component classes are namespaced `abyss-`, decided 2026-07-29. The readme's
+ * bare names are among the most collision-prone selectors in WordPress, and
+ * several of them (.card, .table, .input, .hr) would collide with core block
+ * markup or plugin CSS. The vocabularies therefore differ on purpose, and this
+ * map is how the written spec stays navigable.
+ *
+ *   .hr               -> .abyss-rule        (implemented)
+ *   .grayscale        -> .grayscale         (unchanged, no collision risk)
+ *   .nav              -> .abyss-nav         (implemented)
+ *   .nav-brand        -> .abyss-nav__brand  (implemented)
+ *   .btn, .btn-*      -> .abyss-btn, .abyss-btn--*        (phase 9)
+ *   .tag, .tag-*      -> .abyss-tag, .abyss-tag--*        (phase 9)
+ *   .card, .card-*    -> .abyss-card, .abyss-card__*      (phase 8)
+ *   .elev-sm/md/lg    -> .abyss-elev--sm/md/lg            (phase 8)
+ *   .field, .input    -> .abyss-field, .abyss-input       (phase 10)
+ *   .radio, .dot      -> .abyss-radio, .abyss-radio__dot  (phase 10)
+ *   .seg, .seg-opt    -> .abyss-seg, .abyss-seg__opt      (phase 10)
+ *   .table            -> .abyss-table                     (phase 10)
+ *   .dialog-backdrop  -> .abyss-dialog-backdrop           (phase 10)
+ *   .dialog, .dialog-*-> .abyss-dialog, .abyss-dialog__*  (phase 10)
+ */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
 
 body {
-  margin: 0;
-  font-family: 'Figtree', system-ui, -apple-system, sans-serif;
-  line-height: 1.6;
-  color: var(--fb-ink);
-  background: #fff;
+	margin: 0;
+	font-family: var(--abyss-font-body);
+	font-size: 15px;
+	font-weight: 400;
+	line-height: 1.55;
+	color: var(--abyss-color-text);
+	background: var(--abyss-color-bg);
 }
 
-h1, h2, h3, .site-title {
-  font-family: 'Archivo', system-ui, sans-serif;
-  font-weight: 800;
-  line-height: 1.15;
+/* Heading scale, verbatim from the token sheet's base type layer. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	line-height: 1.12;
+	letter-spacing: -0.015em;
+	margin: 0 0 var(--abyss-space-2);
 }
 
-img { max-width: 100%; height: auto; display: block; }
-a { color: var(--fb-red); text-decoration: none; }
-a:hover { color: var(--fb-red-hover); }
+h1 { font-size: 42px; }
+h2 { font-size: 32px; }
+h3 { font-size: 25px; }
+h4 { font-size: 20px; }
+h5 { font-size: 16px; }
 
+h6 {
+	font-size: 13px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+img {
+	max-width: 100%;
+	height: auto;
+	display: block;
+}
+
+/* The accent-to-ground pair is tuned to about 3:1, which the design readme
+   states is enough for icons, large text, and interface chrome but not for body
+   copy. Links sit in running text, so they take the deep ramp step the readme
+   directs paragraph-size accent text to. Accessibility overriding the literal
+   accent, logged as an intentional divergence in PLAN.md. */
+a {
+	color: var(--abyss-color-accent-700);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+a:hover {
+	color: var(--abyss-color-accent-800);
+}
+
+/* Themed focus, never the browser default. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 2px solid var(--abyss-color-accent);
+	outline-offset: 2px;
+}
+
+::selection {
+	background: var(--abyss-color-accent-200);
+	color: var(--abyss-color-text);
+}
+
+/* Every content photograph prints in pure black and white. */
+.grayscale img,
+img.grayscale {
+	filter: grayscale(1);
+}
+
+/* A strong 2px rule. Modernist's do-not list forbids softening these to
+   hairlines or replacing them with whitespace. */
+.abyss-rule {
+	border: 0;
+	border-top: 2px solid var(--abyss-color-divider);
+	margin: var(--abyss-space-8) 0;
+}
+
+/* Chrome spans the wide width, the reading column takes the content width. */
 .site-header__inner,
-.site-main,
 .site-footer {
-  max-width: var(--fb-max);
-  margin-inline: auto;
-  padding-inline: 28px;
+	max-width: var(--abyss-width-wide);
+	margin-inline: auto;
+	padding-inline: var(--abyss-space-6);
 }
 
-.site-header { border-bottom: 1px solid var(--fb-border); padding-block: 1rem; }
-.site-title { font-weight: 800; font-size: 1.25rem; color: var(--fb-ink); }
-.site-main { padding-block: 3rem; }
-.site-footer { margin-top: 4rem; padding-block: 2rem; background: var(--fb-fog); color: var(--fb-muted); }
+.site-main {
+	max-width: var(--abyss-width-content);
+	margin-inline: auto;
+	padding-inline: var(--abyss-space-6);
+	padding-block: var(--abyss-space-8);
+}
 
-.skip-link { position: absolute; left: -9999px; }
-.skip-link:focus { left: 1rem; top: 1rem; background: #fff; padding: .5rem 1rem; z-index: 100; }
+.site-header {
+	border-bottom: 2px solid var(--abyss-color-divider);
+	padding-block: var(--abyss-space-4);
+}
 
-.screen-reader-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(1px,1px,1px,1px); white-space: nowrap; }
+.site-title {
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	font-size: 18px;
+	color: var(--abyss-color-text);
+	text-decoration: none;
+}
+
+.site-footer {
+	margin-top: var(--abyss-space-8);
+	padding-block: var(--abyss-space-6);
+	border-top: 2px solid var(--abyss-color-divider);
+	color: var(--abyss-color-neutral-700);
+}
+
+/* ---------------------------------------------------------------------------
+   Header bar. The readme's .nav / .nav-brand.
+   Brand flush left with margin-inline-end: auto pushing the links to the far
+   edge, matching the token sheet's .nav-brand. Everything flush left, per the
+   design's do-list.
+   --------------------------------------------------------------------------- */
+
+.abyss-nav {
+	display: flex;
+	align-items: center;
+	gap: var(--abyss-space-4);
+	flex-wrap: wrap;
+}
+
+/* Scoped to the parent on purpose, not for tidiness.
+ *
+ * theme.json's elements.link is emitted by WordPress as
+ * `:root :where(a:where(:not(.wp-element-button)))`. The :where() wrappers
+ * contribute zero specificity, so that selector scores (0,1,0) from :root alone,
+ * exactly the same as a single class. A bare `.abyss-nav__brand` therefore ties
+ * with it and loses on source order, because the inline global styles print
+ * after this stylesheet. Observed at step 7: the brand rendered in accent red
+ * and underlined.
+ *
+ * The parent selector takes it to (0,2,0), which wins outright. This is the
+ * "reach for a more specific selector first" path rather than !important, and
+ * the conflict is with generated code we do not control. Every link rule below
+ * that must beat a theme.json element style is scoped the same way.
+ */
+.abyss-nav .abyss-nav__brand {
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	font-size: 18px;
+	line-height: 1.2;
+	color: var(--abyss-color-text);
+	text-decoration: none;
+	margin-inline-end: auto;
+}
+
+.abyss-nav__menu ul {
+	display: flex;
+	align-items: center;
+	gap: var(--abyss-space-4);
+	flex-wrap: wrap;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.abyss-nav .abyss-nav__menu a {
+	font-size: 14px;
+	color: var(--abyss-color-text);
+	text-decoration: none;
+}
+
+/* Hover and pressed states come from the accent ramp, never browser defaults.
+   Chrome-sized text at 3:1 is within what the readme permits for the accent. */
+.abyss-nav .abyss-nav__menu a:hover {
+	color: var(--abyss-color-accent-600);
+}
+
+.abyss-nav .abyss-nav__menu a[aria-current='page'] {
+	box-shadow: inset 0 -2px 0 var(--abyss-color-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Article. Single-post reading view.
+   --------------------------------------------------------------------------- */
+
+.abyss-article__header {
+	padding-bottom: var(--abyss-space-6);
+	border-bottom: 2px solid var(--abyss-color-divider);
+	margin-bottom: var(--abyss-space-6);
+}
+
+/* The readme's .card-kicker treatment: uppercase, tracked out, accent. At 10px
+   this is chrome rather than body copy, so the accent itself is within spec. */
+.abyss-article__kicker {
+	font-size: 10px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--abyss-color-accent);
+	margin: 0 0 var(--abyss-space-2);
+}
+
+.abyss-article__meta {
+	font-size: 11px;
+	color: var(--abyss-color-neutral-700);
+	margin-top: var(--abyss-space-2);
+}
+
+/* Same specificity reason as the nav brand above. */
+.abyss-article .abyss-article__meta a {
+	color: inherit;
+}
+
+/* Reserve space so loading does not shift the layout. */
+.abyss-article__media {
+	margin: 0 0 var(--abyss-space-6);
+	aspect-ratio: 16 / 9;
+	background: var(--abyss-color-surface);
+}
+
+.abyss-article__media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Prose measure. Applies to the text-flow children only, so a wide image or a
+   full-width block can still break out to the content width. */
+.abyss-article__content > p,
+.abyss-article__content > ul,
+.abyss-article__content > ol,
+.abyss-article__content > blockquote,
+.abyss-article__content > h2,
+.abyss-article__content > h3,
+.abyss-article__content > h4,
+.abyss-article__content > h5,
+.abyss-article__content > h6 {
+	max-width: var(--abyss-prose-width);
+}
+
+.abyss-article__content > * + * {
+	margin-block-start: var(--abyss-space-4);
+}
+
+.abyss-article__content > h2,
+.abyss-article__content > h3,
+.abyss-article__content > h4 {
+	margin-block-start: var(--abyss-space-8);
+}
+
+.abyss-article__content blockquote {
+	margin-inline: 0;
+	padding-inline-start: var(--abyss-space-4);
+	border-inline-start: 2px solid var(--abyss-color-accent);
+}
+
+.skip-link {
+	position: absolute;
+	left: -9999px;
+}
+
+.skip-link:focus {
+	left: var(--abyss-space-4);
+	top: var(--abyss-space-4);
+	background: var(--abyss-color-bg);
+	color: var(--abyss-color-text);
+	padding: var(--abyss-space-2) var(--abyss-space-4);
+	z-index: 100;
+}
+
+.screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Suppressed project-wide rather than per component, per the accessibility
+   baseline. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

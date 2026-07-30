@@ -1,4 +1,11 @@
-<?php defined( 'ABSPATH' ) || exit; ?>
+<?php
+/**
+ * Site header and the opening of the document.
+ *
+ * @package The_abyss
+ */
+defined( 'ABSPATH' ) || exit;
+?>
 <!doctype html>
 <html <?php language_attributes(); ?>>
 <head>
@@ -8,9 +15,32 @@
 </head>
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
-<a class="skip-link screen-reader-text" href="#main"><?php esc_html_e( 'Skip to content', 'futurebuild' ); ?></a>
+<a class="skip-link screen-reader-text" href="#main"><?php esc_html_e( 'Skip to content', 'the-abyss' ); ?></a>
+
 <header class="site-header">
 	<div class="site-header__inner">
-		<a class="site-title" href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php bloginfo( 'name' ); ?></a>
+		<nav class="abyss-nav" aria-label="<?php esc_attr_e( 'Primary', 'the-abyss' ); ?>">
+			<a class="abyss-nav__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>">
+				<?php bloginfo( 'name' ); ?>
+			</a>
+
+			<?php
+			/*
+			 * fallback_cb is false on purpose. WordPress otherwise renders a
+			 * list of every published page when no menu is assigned, which is
+			 * not a design decision anyone made. With no menu the header simply
+			 * shows the brand, which is a valid layout rather than a broken one.
+			 */
+			wp_nav_menu(
+				array(
+					'theme_location' => 'primary',
+					'container'      => 'div',
+					'container_class' => 'abyss-nav__menu',
+					'depth'          => 1,
+					'fallback_cb'    => false,
+				)
+			);
+			?>
+		</nav>
 	</div>
 </header>

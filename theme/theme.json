@@ -1,31 +1,134 @@
 {
-  "$schema": "https://schemas.wp.org/trunk/theme.json",
-  "version": 3,
-  "settings": {
-    "appearanceTools": true,
-    "layout": { "contentSize": "760px", "wideSize": "1240px" },
-    "color": {
-      "custom": false,
-      "customGradient": false,
-      "defaultPalette": false,
-      "palette": [
-        { "slug": "red",   "color": "#e11d22", "name": "Brand Red" },
-        { "slug": "ink",   "color": "#16181d", "name": "Ink" },
-        { "slug": "muted", "color": "#6a6d75", "name": "Muted" },
-        { "slug": "fog",   "color": "#f6f6f7", "name": "Fog" },
-        { "slug": "white", "color": "#ffffff", "name": "White" }
-      ]
-    },
-    "typography": {
-      "fluid": true,
-      "customFontSize": false,
-      "fontSizes": [
-        { "slug": "small",  "size": "0.875rem", "name": "Small" },
-        { "slug": "medium", "size": "1rem",     "name": "Medium" },
-        { "slug": "large",  "size": "1.5rem",   "name": "Large" },
-        { "slug": "xl",     "size": "clamp(2rem, 5vw, 3.25rem)", "name": "XL" }
-      ]
-    },
-    "spacing": { "units": ["px", "rem", "%", "vw"] }
-  }
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 3,
+	"settings": {
+		"appearanceTools": true,
+		"useRootPaddingAwareAlignments": true,
+		"layout": { "contentSize": "960px", "wideSize": "1440px" },
+		"color": {
+			"custom": false,
+			"customDuotone": false,
+			"customGradient": false,
+			"defaultPalette": false,
+			"defaultGradients": false,
+			"defaultDuotone": false,
+			"palette": [
+				{ "slug": "base", "color": "#f3f2f2", "name": "Ground" },
+				{ "slug": "surface", "color": "#eae9e9", "name": "Surface" },
+				{ "slug": "contrast", "color": "#201e1d", "name": "Ink" },
+				{ "slug": "accent", "color": "#ec3013", "name": "Accent" },
+				{ "slug": "accent-text", "color": "#ae1800", "name": "Accent (text safe)" },
+				{ "slug": "divider", "color": "rgba(32, 30, 29, 0.4)", "name": "Divider" },
+
+				{ "slug": "neutral-100", "color": "#f8f4f4", "name": "Neutral 100" },
+				{ "slug": "neutral-200", "color": "#eae7e7", "name": "Neutral 200" },
+				{ "slug": "neutral-300", "color": "#d7d3d3", "name": "Neutral 300" },
+				{ "slug": "neutral-400", "color": "#bab6b6", "name": "Neutral 400" },
+				{ "slug": "neutral-500", "color": "#9b9797", "name": "Neutral 500" },
+				{ "slug": "neutral-600", "color": "#7d7979", "name": "Neutral 600" },
+				{ "slug": "neutral-700", "color": "#605d5d", "name": "Neutral 700" },
+				{ "slug": "neutral-800", "color": "#444141", "name": "Neutral 800" },
+				{ "slug": "neutral-900", "color": "#2d2b2b", "name": "Neutral 900" },
+
+				{ "slug": "accent-100", "color": "#fff2ef", "name": "Accent 100" },
+				{ "slug": "accent-200", "color": "#ffe0d9", "name": "Accent 200" },
+				{ "slug": "accent-300", "color": "#ffc4b8", "name": "Accent 300" },
+				{ "slug": "accent-400", "color": "#ff9783", "name": "Accent 400" },
+				{ "slug": "accent-500", "color": "#ff563c", "name": "Accent 500" },
+				{ "slug": "accent-600", "color": "#dd2b0f", "name": "Accent 600" },
+				{ "slug": "accent-700", "color": "#ae1800", "name": "Accent 700" },
+				{ "slug": "accent-800", "color": "#7c1405", "name": "Accent 800" },
+				{ "slug": "accent-900", "color": "#4d170e", "name": "Accent 900" }
+			]
+		},
+		"typography": {
+			"fluid": false,
+			"customFontSize": false,
+			"defaultFontSizes": false,
+			"fontFamilies": [
+				{
+					"slug": "archivo",
+					"name": "Archivo",
+					"fontFamily": "'Archivo', system-ui, sans-serif"
+				}
+			],
+			"fontSizes": [
+				{ "slug": "xs", "size": "13px", "name": "XS" },
+				{ "slug": "sm", "size": "15px", "name": "Body" },
+				{ "slug": "md", "size": "16px", "name": "MD" },
+				{ "slug": "lg", "size": "20px", "name": "LG" },
+				{ "slug": "xl", "size": "25px", "name": "XL" },
+				{ "slug": "2xl", "size": "32px", "name": "2XL" },
+				{ "slug": "3xl", "size": "42px", "name": "3XL" }
+			]
+		},
+		"spacing": {
+			"customSpacingSize": false,
+			"defaultSpacingSizes": false,
+			"units": ["px", "rem", "%", "vw"],
+			"spacingSizes": [
+				{ "slug": "1", "size": "4px", "name": "1" },
+				{ "slug": "2", "size": "8px", "name": "2" },
+				{ "slug": "3", "size": "12px", "name": "3" },
+				{ "slug": "4", "size": "16px", "name": "4" },
+				{ "slug": "6", "size": "24px", "name": "6" },
+				{ "slug": "8", "size": "32px", "name": "8" }
+			]
+		},
+		"shadow": {
+			"defaultPresets": false,
+			"presets": [
+				{ "slug": "sm", "name": "Small", "shadow": "0 1px 2px rgba(45, 43, 43, 0.14)" },
+				{ "slug": "md", "name": "Medium", "shadow": "0 3px 10px rgba(45, 43, 43, 0.16)" },
+				{ "slug": "lg", "name": "Large", "shadow": "0 12px 32px rgba(45, 43, 43, 0.22)" }
+			]
+		},
+		"border": {
+			"color": true,
+			"radius": false,
+			"style": true,
+			"width": true
+		}
+	},
+	"styles": {
+		"color": {
+			"background": "var(--wp--preset--color--base)",
+			"text": "var(--wp--preset--color--contrast)"
+		},
+		"typography": {
+			"fontFamily": "var(--wp--preset--font-family--archivo)",
+			"fontSize": "var(--wp--preset--font-size--sm)",
+			"fontWeight": "400",
+			"lineHeight": "1.55"
+		},
+		"elements": {
+			"link": {
+				"color": { "text": "var(--wp--preset--color--accent-text)" },
+				"typography": { "textDecoration": "underline" },
+				":hover": {
+					"color": { "text": "var(--wp--preset--color--accent-800)" }
+				}
+			},
+			"heading": {
+				"typography": {
+					"fontFamily": "var(--wp--preset--font-family--archivo)",
+					"fontWeight": "800",
+					"lineHeight": "1.12",
+					"letterSpacing": "-0.015em"
+				}
+			},
+			"h1": { "typography": { "fontSize": "var(--wp--preset--font-size--3xl)" } },
+			"h2": { "typography": { "fontSize": "var(--wp--preset--font-size--2xl)" } },
+			"h3": { "typography": { "fontSize": "var(--wp--preset--font-size--xl)" } },
+			"h4": { "typography": { "fontSize": "var(--wp--preset--font-size--lg)" } },
+			"h5": { "typography": { "fontSize": "var(--wp--preset--font-size--md)" } },
+			"h6": {
+				"typography": {
+					"fontSize": "var(--wp--preset--font-size--xs)",
+					"letterSpacing": "0.08em",
+					"textTransform": "uppercase"
+				}
+			}
+		}
+	}
 }

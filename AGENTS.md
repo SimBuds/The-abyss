@@ -1102,6 +1102,50 @@ Confirm with appropriate read-only evidence such as:
 When a prediction and the live system disagree, correct the plan plainly and trust
 the live evidence.
 
+### Design system divergences
+
+The Modernist token sheet at
+`design/_ds/modernist-747f06d4-a5fd-4b38-bebe-4878e82695b0/styles.css` is the
+locked source of truth for every colour, font, spacing, radius, and shadow value.
+Do not hand-pick a value a token already carries. The divergences below were
+presented as a ledger and approved on 2026-07-29. Do not re-litigate or silently
+"correct" them.
+
+- **`accent-2` is not exposed in `theme.json`.** The design readme states the
+  scheme is mono, that no second accent was chosen, and that the
+  `--color-accent-2-*` ramp is a machine-derived stand-in to be treated as one
+  role with the accent. Exposing it would let an author pick a brand colour that
+  was never designed. The ramp remains available in CSS.
+- **`accent-700` (`#ae1800`) is exposed as `accent-text` and used for links.**
+  The readme states the accent-to-ground pair is tuned to about 3:1, sufficient
+  for icons, large text, and interface chrome but not for body copy, and directs
+  paragraph-size accent text to `--color-accent-700`. Accessibility overriding
+  the literal accent, per the universal rule that an accessibility fix may
+  override the design spec.
+- **`--color-divider` is written as `rgba(32, 30, 29, 0.4)`.** The token is
+  `color-mix(in srgb, #201e1d 40%, transparent)`. Identical colour, but
+  `color-mix()` in a `theme.json` palette entry breaks the editor colour picker.
+- **Fluid typography is off.** Modernist specifies exact pixel sizes and states
+  density 1.00x is already baked into the scales. WordPress fluid typography
+  would rescale every one of them.
+- **Radius lives in CSS, not `theme.json`.** `--radius-sm/md/lg` are all `0px`
+  deliberately and WordPress has no global radius setting.
+- **`spacingSizes` has six entries.** The token sheet defines 1, 2, 3, 4, 6, and
+  8. There is no 5 or 7 and none is invented.
+- **`--abyss-content-width: 1240px` is not from the token sheet.** Modernist
+  specifies a modular grid but no content width. Carried over from the prototype
+  and still awaiting confirmation.
+
+Two findings about the fonts, recorded so they are not undone:
+
+- **Archivo is declared as a weight range, `font-weight: 100 900`.** The three
+  woff2 files are variable fonts, confirmed by reading `fvar`, `avar`, `HVAR`,
+  and `STAT` from the woff2 table directory. The prototype declared them across
+  24 fixed-weight blocks covering only 600 to 900, which left the body weight of
+  400 with no matching face and rendered body copy 200 units too heavy.
+- **Figtree was removed.** It appears nowhere in the design system. Its two
+  woff2 files and its `@font-face` blocks were deleted.
+
 ### Secrets and identifiers
 
 Passwords, private keys, credentials, live addresses, and unnecessary provider

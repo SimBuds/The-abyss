@@ -159,6 +159,24 @@ is derived from `styles.css` rather than read from the missing file, and the
 missing component pages mean markup is written against the readme's class list
 rather than copied. Record any divergence this forces as an intentional one.
 
+Done at step 6: `theme.json` carries 24 palette entries, 7 font sizes, 6 spacing
+sizes, and 3 shadow presets, all traced to the token sheet, plus a `styles` block
+mapping the heading scale to elements. `theme/assets/css/main.css` carries the
+same values as `--abyss-*` custom properties. The approved divergences are
+recorded in `AGENTS.md` under *Design system divergences*, which is where the
+fidelity gate requires them.
+
+Still outstanding for step 7: the component layer. The readme's class list
+(`.btn`, `.tag`, `.card`, `.nav`, `.table`, `.dialog`, `.field`, `.input`,
+`.radio`, `.seg`) has no markup in the export, so each is written against the
+written spec rather than copied. `main.css` currently implements only the
+foundations: base type, links, focus, selection, the `.grayscale` wrapper, and
+the 2px rule.
+
+The theme is deployed into the container by symlink,
+`/var/www/the-abyss/wp-content/themes/the-abyss -> /workspace/theme`, so repo
+edits are live without a copy step. The vhost already allows `+FollowSymLinks`.
+
 Locked values, per the regression-locks rule: the token values in `styles.css`
 are the source of truth for colour, type, and spacing. Do not hand-pick a hex, a
 font stack, or a pixel value that a token already carries.
@@ -170,11 +188,14 @@ font stack, or a pixel value that a token already carries.
 - Do not deploy or cosmetically rename that prototype. Its post types, API
   contracts, palette, typography, and prefixes are the wrong product.
 - Create the production theme as a fresh, separately verified step.
-- `design/` is present, roughly 17M, and currently untracked and un-ignored.
-  About 15.5M is PNG imagery, including screenshots under `design/uploads/` that
-  appear to be working scratch. What gets committed needs a deliberate decision
-  before any commit touches the directory, because binaries in Git history are
-  permanent.
+- `design/` is roughly 17M. Decided 2026-07-29: `design/_ds/` is tracked, about
+  29KB across five files, because it holds the token sheet this file calls the
+  locked source of truth and a clone must be able to read it. The remaining
+  15.5M of PNG imagery, the screenshots under `design/uploads/`, and the
+  708KB state JSON stay ignored, because binaries in Git history are permanent.
+  The rule is `design/*` and not `design/`: Git never descends into an excluded
+  directory, so a bare `design/` makes the `!design/_ds/` negation a silent
+  no-op.
 - `README.md` still describes an AWS build under *At a glance*. It is corrected
   after the local environment is proven, not before.
 
@@ -331,8 +352,9 @@ Phase A, the local environment:
 
 Phase B, the theme:
 
-- [ ] Step 6, derive `theme.json` from the Modernist tokens and reconcile the
-      missing component references.
+- [x] **Step 6, prototype stripped and `theme.json` derived from the Modernist
+      tokens. Theme deployed by symlink, activated, and tokens verified in the
+      rendered page.**
 - [ ] Step 7, build and prove the fresh `the-abyss` theme against the container.
 
 Phase C, hosting:

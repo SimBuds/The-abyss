@@ -31,22 +31,29 @@ docker compose up -d --build
 ssh -p 2222 root@localhost
 ```
 
-**The hosting target is deliberately undecided.** It will be AWS or a
-DigitalOcean droplet, chosen at Step 8 once the stack is understood. Nothing
-before that step depends on a provider. The candidates, their costs, and the
-decision criteria are in [`PLAN.md`](PLAN.md#hosting-undecided).
+**Hosting is decided: the existing DigitalOcean droplet.** It already serves a
+live portfolio site, which makes every mutating step there risky tier and puts a
+read-only inventory first. AWS is a deferred candidate with its completed work
+banked. Both are in [`PLAN.md`](PLAN.md#hosting-the-existing-digitalocean-droplet).
 
-The lifecycle is local, then staging, then production. Staging is stood up first
-and served over HTTP at the server's public IP. Going live means connecting the
-domain, TLS, and Cloudflare. Staging is never indexed and never holds real
-credentials.
+The theme is built on the Modernist design system, whose token sheet in
+`design/_ds/` is the locked source of truth for every colour, font, and spacing
+value. Approved divergences from it are recorded in [`AGENTS.md`](AGENTS.md).
+
+The lifecycle is local, then staging, then production. Going live means
+connecting the domain, TLS, and Cloudflare. Staging is never indexed and never
+holds real credentials.
 
 ## Current state
 
-WordPress is running locally at `http://localhost:8080`, on Apache with
-`php-fpm` and MySQL inside the container, all installed by hand and codified into
-`docker/Dockerfile`. Next is finishing that codification, then the theme. The
-full roadmap and its checkboxes are in [`PLAN.md`](PLAN.md#status).
+Build steps 0 to 6 and step 8 are complete. WordPress runs locally at
+`http://localhost:8080` on Apache with `php-fpm` and MySQL inside the container,
+the whole stack is codified in `docker/Dockerfile`, and the `the-abyss` theme is
+active with the Modernist tokens verified in the rendered page.
+
+Next is step 7, the component layer, then step 9, the read-only droplet
+inventory. The full roadmap and its checkboxes are in
+[`PLAN.md`](PLAN.md#status).
 
 ## Build log
 
@@ -423,3 +430,85 @@ The full log showed every startup stage completing. Worth distinguishing from
 entrypoint print `ERROR:` to stderr, not `entrypoint:`, so the filter removed
 exactly the line that would have explained a failure. When investigating, read
 the whole log rather than the slice a hypothesis expects.
+
+#### Step 6 — prototype stripped, theme.json from the Modernist tokens ✅
+
+**Goal:** replace the inherited prototype's identity, palette, and content model
+with the Modernist design system, and prove the tokens reach the rendered page.
+
+**Why it matters:** the prototype was a prefab-building site. Its palette used
+`#e11d22`, `#16181d`, and `#f6f6f7` against Modernist's `#ec3013`, `#201e1d`, and
+`#f3f2f2`. Those are near-misses, which are more dangerous than obviously wrong
+values because they read as correct in a diff. It also registered a
+`building_model` post type with two taxonomies, and prefixed everything `fb_`
+against the canonical `the_abyss_`.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+ln -s /workspace/theme /var/www/the-abyss/wp-content/themes/the-abyss
+su -s /bin/sh www-data -c 'head -3 /var/www/the-abyss/wp-content/themes/the-abyss/style.css'
+```
+
+```text
+# IN WP-ADMIN
+Appearance -> Themes -> The-abyss -> Activate
+```
+
+The symlink means repo edits are live in WordPress with no copy step. The vhost
+already permits `+FollowSymLinks`.
+
+Kept from the prototype: the three Archivo woff2 files and the classic-theme file
+scaffold. Deleted: `inc/cpt.php`, the palette, and the two Figtree woff2 files,
+which appear nowhere in the design system.
+
+**Verify:**
+
+```bash
+# ON HOST
+curl -s http://localhost:8080/ | grep -Eo 'the-abyss/assets/css/[a-z]+\.css|wp--preset--color--(base|accent|contrast)|#f3f2f2|#ec3013' | sort -u
+```
+
+```text
+#ec3013
+#f3f2f2
+the-abyss/assets/css/fonts.css
+the-abyss/assets/css/main.css
+wp--preset--color--accent
+wp--preset--color--base
+wp--preset--color--contrast
+```
+
+Reading the rendered page rather than the files is the point: the hex values
+appearing in the response prove the tokens reached the output. Activation
+completing without a fatal is also what verified the PHP, since `php -l` could
+not run.
+
+A widened identifier search returns nothing:
+`rg 'FutureBuild|futurebuild|FB_[A-Z]|fb_[a-z]|fb-[a-z]|building_model|building_type|Figtree|e11d22|c4171c|16181d|6a6d75|f6f6f7|e6e6e8' theme/`.
+All 23 colour values in the theme trace to the token sheet, and no hex in the
+theme is absent from it.
+
+**Q&A:**
+
+*Why did the first verification pattern have to be widened?* The approved pattern
+was `building_model|building_type|fb_|e11d22|16181d|f6f6f7`. It matched `fb_setup`
+but not `FB_VERSION`, `fb-red`, `futurebuild`, or `FutureBuild`, and named three
+of the six stale hex values. It would have reported a clean strip with roughly
+forty obsolete identifiers still in place. A check that cannot fail on the real
+target verifies nothing.
+
+*Why is Archivo declared as `font-weight: 100 900`?* The three woff2 files are
+variable fonts, confirmed by parsing the woff2 table directory for `fvar`, `avar`,
+`HVAR`, and `STAT`. `brotli` was unavailable so fontTools could not open them, but
+the woff2 table directory is uncompressed and readable directly. The prototype
+declared 24 fixed-weight blocks spanning only 600 to 900, leaving Modernist's body
+weight of 400 with no matching face, so body copy would have rendered from the 600
+face.
+
+*Why do links use `#ae1800` rather than the accent `#ec3013`?* The design readme
+states the accent-to-ground pair is tuned to about 3:1, enough for icons, large
+text, and interface chrome but not for body copy, and directs paragraph-size
+accent text to `--color-accent-700`. Links sit in running text. Recorded as an
+approved divergence in `AGENTS.md`.

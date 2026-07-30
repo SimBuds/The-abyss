@@ -1,8 +1,8 @@
 <?php
 /**
- * Fallback template — the base of the template hierarchy.
+ * Fallback template, the base of the template hierarchy.
  *
- * @package FutureBuild
+ * @package The_abyss
  */
 defined( 'ABSPATH' ) || exit;
 
@@ -18,7 +18,7 @@ get_header();
 		<?php endwhile; ?>
 		<?php the_posts_pagination(); ?>
 	<?php else : ?>
-		<p><?php esc_html_e( 'Nothing here yet.', 'futurebuild' ); ?></p>
+		<p><?php esc_html_e( 'Nothing here yet.', 'the-abyss' ); ?></p>
 	<?php endif; ?>
 </main>
 <?php

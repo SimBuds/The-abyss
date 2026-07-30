@@ -31,6 +31,14 @@ vendor/
 # Agent working file.
 IMPLEMENT.md
 
-# Design export. 17M of binaries, mostly PNG.
-design/
+# Design export. 17M of binaries, mostly PNG, stays out. The _ds token sheet is
+# ~30KB and PLAN.md calls it the locked source of truth for every colour, font,
+# and spacing value, so it has to survive a clone.
+#
+# Note the trailing /* rather than a bare design/. Git never descends into an
+# excluded directory, so a bare `design/` makes `!design/_ds/` a no-op: the
+# negation is unreachable and the tokens stay ignored with no warning.
+# `design/*` excludes the entries inside design/ individually, which leaves the
+# negation able to re-include one of them.
+design/*
 !design/_ds/
