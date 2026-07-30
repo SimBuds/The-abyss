@@ -43,9 +43,10 @@ credentials.
 
 ## Current state
 
-The local container is running and reachable over SSH. Next is installing Apache
-with `php-fpm` inside it. The full roadmap and its checkboxes are in
-[`PLAN.md`](PLAN.md#status).
+WordPress is running locally at `http://localhost:8080`, on Apache with
+`php-fpm` and MySQL inside the container, all installed by hand and codified into
+`docker/Dockerfile`. Next is finishing that codification, then the theme. The
+full roadmap and its checkboxes are in [`PLAN.md`](PLAN.md#status).
 
 ## Build log
 
@@ -108,3 +109,247 @@ which is why rebuilding the container triggers a host-key warning. Clear it with
 *Why does `uname` report a zen kernel rather than Ubuntu's?* Containers share the
 host kernel and supply only the userland. This is the thinnest part of the mirror
 and does not affect the stack being learned.
+
+#### Step 2 — Apache with `php-fpm` ✅
+
+**Goal:** a working web tier in the container, with PHP running as its own
+service rather than embedded in the web server.
+
+**Why it matters:** Apache does not execute PHP here. It forwards `.php`
+requests over FastCGI to `php-fpm`, which runs them in a separate process. The
+alternative, `mod_php`, embeds an interpreter in every Apache worker whether it
+needs one or not, which is what makes memory tight on a small host, and it means
+a PHP-level compromise is also a web-server-level one. Three pieces connect them:
+`proxy_fcgi` forwards, `setenvif` passes the `Authorization` header through for
+the WordPress REST API, and the packaged conf wires the routing rule.
+
+**Commands:** run by hand first, then codified into `docker/Dockerfile`.
+
+```bash
+# IN CONTAINER
+apt-get update
+apt-get install -y apache2 php-fpm
+a2enmod proxy_fcgi setenvif
+FPM_CONF=$(ls /etc/apache2/conf-available/ | grep -o 'php[0-9.]*-fpm' | head -1)
+a2enconf "$FPM_CONF"
+service "$FPM_CONF" start
+service apache2 start
+```
+
+On a real host the last two are `systemctl start php8.3-fpm` and
+`systemctl start apache2`. The PHP version is discovered rather than hardcoded,
+in both the Dockerfile and the entrypoint, so a distribution upgrade does not
+silently produce an image that serves PHP source as plain text.
+
+**Verify:**
+
+```text
+Wed Jul 29 19:04:16 UTC 2026
+PHP 8.3.6 via fpm-fcgi
+
+HTTP/1.1 200 OK
+Server: Apache/2.4.58 (Ubuntu)
+```
+
+The `fpm-fcgi` field is the load-bearing one. `apache2handler` there would mean
+PHP was running embedded in Apache, the arrangement this build exists to avoid.
+The 200 came from the host on port 8080, proving the port map survived a rebuild.
+`date` in UTC confirms the timezone is pinned.
+
+**Q&A:**
+
+*Why did installing `php-fpm` open an interactive timezone picker when the
+Dockerfile sets `DEBIAN_FRONTEND=noninteractive`?* Because `ENV` does not reach
+an SSH session. It applies to the container's main process and to `docker exec`,
+but `sshd` builds a fresh login environment from PAM, so Docker's variables are
+absent. Fixed by writing the variable to `/etc/environment`, which PAM does read,
+and by pinning the timezone at build time so no package can ask.
+
+*Why codify Apache into the Dockerfile at step 2 instead of waiting for step 5?*
+Because a rebuild discards anything installed by hand. `/var/www` and
+`/var/lib/mysql` are named volumes and survive, but `/etc` and `/usr` are
+container layers and do not. Capturing the verified commands first made the
+rebuild productive rather than destructive, and that is now the standing pattern.
+
+*Why did SSH refuse to connect after the rebuild?* The rebuild regenerated the
+container's host keys, and `~/.ssh/known_hosts` correctly flagged the identity
+change. Cleared with `ssh-keygen -R '[localhost]:2222'`. The same thing happens
+when a real server is rebuilt.
+
+#### Step 3 — MySQL and the WordPress database ✅
+
+**Goal:** MySQL running, with a database and a least-privilege user for
+WordPress.
+
+**Why it matters:** WordPress stores these credentials in a file on disk. If that
+file leaks, the blast radius should be one database rather than the whole server,
+so WordPress gets a user scoped to its own database and nothing else. The
+database is also the part that cannot be recreated. WordPress files reinstall in
+a minute, but posts, settings, users, and plugin configuration exist only here,
+which is why `/var/lib/mysql` is a separate named volume from `/var/www`.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+apt-get update
+apt-get install -y mysql-server
+service mysql start
+
+read -rsp 'Choose a password for abyss_local: ' DB_PASS; echo
+
+mysql <<SQL
+CREATE DATABASE the_abyss_local CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'abyss_local'@'localhost' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL PRIVILEGES ON the_abyss_local.* TO 'abyss_local'@'localhost';
+FLUSH PRIVILEGES;
+SQL
+```
+
+On a real host, `service mysql start` is `systemctl start mysql`. The password is
+read into a shell variable rather than typed into the command, so it reaches
+neither the screen nor shell history. It is not recorded here, in `PLAN.md`, or
+anywhere else in this repository.
+
+**Verify:**
+
+```text
+mysql  Ver 8.0.46-0ubuntu0.24.04.3 for Linux on x86_64 ((Ubuntu))
+Uptime: 16  Threads: 2  Questions: 10  Slow queries: 0
+
++-----------------+
+| DATABASE()      |
++-----------------+
+| the_abyss_local |
++-----------------+
+| GRANT USAGE ON *.* TO `abyss_local`@`localhost`                          |
+| GRANT ALL PRIVILEGES ON `the_abyss_local`.* TO `abyss_local`@`localhost` |
+```
+
+Connecting as `abyss_local` is the check that matters, not the fact that the
+`CREATE` statements returned without error. The grant must read
+`ON the_abyss_local.*`. Had it read `ON *.*`, WordPress would hold privileges on
+every database on the server.
+
+**Q&A:**
+
+*Why does `mysql` connect as root with no password?* Ubuntu configures root with
+the `auth_socket` plugin, which authenticates by Unix user identity rather than a
+password. No credential exists to leak or store.
+
+*What is `GRANT USAGE ON *.*`?* MySQL's way of recording that an account may
+connect and holds no privileges. Every user has it. It is the account's
+existence, not a permission, and it is not server-wide access.
+
+*Why `utf8mb4` rather than `utf8`?* MySQL's `utf8` holds only three bytes per
+character and silently cannot store emoji or some CJK characters. `utf8mb4` is
+real UTF-8. Choosing wrong surfaces months later as posts truncating at the first
+emoji, and fixing it then means converting every table.
+
+*`ss` and `netstat` were not installed, so the listening address went
+unverified.* The `ubuntu:24.04` image is minimized. `bind_address` can be read
+with `mysql -e "SHOW VARIABLES LIKE 'bind_address';"` instead. It is a second
+layer regardless: `compose.yaml` publishes only 8080 and 2222, so MySQL has no
+route in from the host whatever it binds to.
+
+#### Step 4 — WordPress installed and serving ✅
+
+**Goal:** WordPress running at `http://localhost:8080`, connected to its own
+database, with the site URL set by constant rather than stored in the database.
+
+**Why it matters:** `WP_HOME` and `WP_SITEURL` defined in `wp-config.php`
+override whatever is in `wp_options`. WordPress normally keeps the site URL in
+the database, and absolute URLs spread from there into post content, metadata,
+and serialised plugin settings, which is what turns a later domain change into a
+database-wide search and replace. Defined in config, the cutover is a one-line
+edit.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+cd /tmp
+curl -fLO https://wordpress.org/latest.tar.gz
+tar -xzf latest.tar.gz
+mkdir -p /var/www/the-abyss
+cp -a /tmp/wordpress/. /var/www/the-abyss/
+chown -R www-data:www-data /var/www/the-abyss
+rm -rf /tmp/wordpress /tmp/latest.tar.gz
+
+read -rsp 'Password for abyss_local: ' DB_PASS; echo
+curl -s https://api.wordpress.org/secret-key/1.1/salt/ > /tmp/salts.txt
+# wp-config.php written with DB credentials, WP_HOME, WP_SITEURL, and debug
+# logging to file rather than to the page, then:
+sed -i '/DB_COLLATE/r /tmp/salts.txt' /var/www/the-abyss/wp-config.php
+rm /tmp/salts.txt
+chown www-data:www-data /var/www/the-abyss/wp-config.php
+chmod 640 /var/www/the-abyss/wp-config.php
+```
+
+`curl -fLO` rather than plain `-O`: without `-f`, curl saves an HTTP error page
+as the tarball and the failure surfaces at `tar` as an unrecognised archive.
+`chmod 640` because this file holds the database password and has no reason to be
+world-readable. The vhost was created by hand and then codified into
+`docker/Dockerfile`.
+
+**Verify:**
+
+```text
++---------------------------+
+| Tables_in_the_abyss_local |
++---------------------------+
+| wp_options                |   (12 wp_* tables total)
+| wp_posts                  |
+| wp_users                  |
++---------------------------+
++-------------+-----------------------+
+| blogname    | The-abyss             |
+| home        | http://localhost:8080 |
+| siteurl     | http://localhost:8080 |
++-------------+-----------------------+
+```
+
+`siteurl` and `home` in the database agree with the constants, so there is no
+drift between the two. `grep -c '_KEY\|_SALT' wp-config.php` returns 8, one per
+authentication key and salt.
+
+**Q&A:**
+
+*WordPress returned a 500 with a completely empty Apache error log. Why?*
+`php-fpm` is the FastCGI runtime only, and every PHP extension is a separate
+Debian package. Without `php-mysql`, WordPress fails its requirements check and
+calls `wp_die()`, which is a controlled stop rather than a PHP error, so nothing
+is logged. An empty error log beside a 500 is therefore evidence, not an absence
+of it: it means the application stopped itself deliberately.
+
+*Why was the cause invisible for several rounds?* Because `curl -I` fetches
+headers only, and the explanation was in the response body the whole time. The
+rule is not "always fetch the body" but "fetch whichever half carries the
+information for this failure mode". A 500 puts it in the body. A 302 has no body
+at all, so headers are the only place to look.
+
+*Why did the vhost and MySQL keep disappearing?* Each rebuild discards
+everything in the image, including `/etc`. Three rebuilds each lost a different
+hand-made change before the split was audited properly: packages and `/etc` are
+image content and must be codified, while `/var/www` and `/var/lib/mysql` are
+named volumes and survive. The audit is now recorded in `docker/Dockerfile` and
+in `PLAN.md`.
+
+*The vhost build failed with `Cannot access directory
+'/etc/apache2/\/var/log/apache2/'`.* Apache's `${APACHE_LOG_DIR}` had to survive
+a Dockerfile `RUN`, a shell single-quoted string, and then Apache's own variable
+expansion. The escape left a literal backslash in the file, which made the path
+relative to `ServerRoot`. Fixed by using the literal `/var/log/apache2` instead,
+since a plain path has no layers to survive. The `apache2ctl configtest` guard in
+the build caught this rather than shipping a vhost that would fail at start.
+
+*Why does `curl http://localhost/` inside the container return 301?* Because
+`WP_SITEURL` is `http://localhost:8080`, and WordPress issues a canonical
+redirect to the address it was told is correct. The in-container port 80 view is
+the wrong vantage point once the site URL is set. A 301 there is proof WordPress
+reached the database, since a credential failure would be a 500 instead.
+
+*The salts were written as blank lines the first time.* `${SALTS}` was expanded
+in a shell session where the variable had never been set. Rewritten using
+`sed '/DB_COLLATE/r file'`, which reads from a file rather than through a shell
+variable and so cannot silently expand to nothing.

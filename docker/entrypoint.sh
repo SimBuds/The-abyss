@@ -33,12 +33,21 @@ install -d -m 700 -o root -g root /root/.ssh
 install -m 600 -o root -g root "$KEY_SRC" "$KEY_DST"
 echo "entrypoint: authorized_keys installed from $KEY_SRC"
 
+# --- database ---------------------------------------------------------------
+# /var/lib/mysql is a named volume, so its contents outlive the image. A rebuild
+# can therefore hand MySQL a data directory created by a previous container. The
+# chown guards against the mysql user's uid differing between image builds, which
+# fails as a refusal to start with the reason buried in /var/log/mysql/error.log
+# rather than on stdout. Cheap on a small database, and idempotent.
+chown -R mysql:mysql /var/lib/mysql
+service mysql start
+echo "entrypoint: started mysql"
+
 # --- web tier --------------------------------------------------------------
 # The php-fpm service name carries the PHP version, so it is discovered rather
 # than hardcoded. An empty result is a hard failure: starting Apache without
 # php-fpm produces a site that serves PHP source as plain text, which looks like
 # a template bug rather than a missing service.
-
 FPM_SVC="$(ls /etc/init.d/ | grep -o 'php[0-9.]*-fpm' | head -1)"
 
 if [ -z "$FPM_SVC" ]; then

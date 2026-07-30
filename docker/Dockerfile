@@ -10,8 +10,23 @@
 # before the commands were understood produces a working site and no
 # understanding of it.
 #
-# MySQL and WordPress are deliberately NOT here yet. They are steps 3 and 4, to
-# be installed by hand and codified the same way.
+# What lives where, audited at step 4 after three rebuilds each lost a different
+# hand-made change. Anything not in this list and not in a volume does not
+# survive `docker compose up --build`:
+#
+#   IMAGE (lost on rebuild, so it must be codified here)
+#     packages, /etc/apache2, /etc/php, /etc/ssh, the vhost, enabled modules
+#
+#   NAMED VOLUME (survives, so it must NOT be codified)
+#     /var/www        WordPress files and wp-config.php, which holds credentials
+#     /var/lib/mysql  the database, including the_abyss_local and its user
+#
+#   BIND MOUNT
+#     /workspace      this repository, live in both directions
+#
+# WordPress itself is deliberately absent: it is data in a volume, not image
+# content, and wp-config.php must never be baked into an image. Making a
+# from-scratch machine self-provisioning is a step 5 item.
 
 FROM ubuntu:24.04
 
@@ -44,7 +59,29 @@ RUN apt-get update \
       openssh-server \
       apache2 \
       php-fpm \
+      php-mysql \
+      php-curl \
+      php-xml \
+      php-mbstring \
+      php-zip \
+      php-gd \
+      php-intl \
+      mysql-server \
  && rm -rf /var/lib/apt/lists/*
+
+# On the extensions above: php-fpm is the FastCGI runtime ONLY. Every extension
+# is a separate package. Observed at step 4: without php-mysql, WordPress served
+# a 500 with an EMPTY Apache error log, because its requirements check calls
+# wp_die() rather than raising a PHP error, so nothing is logged. The page title
+# read "Requirements Not Met" and the message was in the response body, which
+# `curl -I` does not fetch.
+#
+# php-mysql is the only one strictly required. The rest are WordPress's own
+# recommended set and each would otherwise surface as its own failure later:
+# curl for outbound HTTP and updates, xml for RSS and oEmbed, mbstring for
+# multibyte strings, zip for plugin and theme installs, gd for image resizing on
+# upload, intl for locale-aware formatting. php-imagick is deliberately omitted:
+# it pulls in ImageMagick, and gd covers what this site needs.
 
 # Apache does not execute PHP. It forwards .php requests over FastCGI to php-fpm,
 # which runs them in its own process. proxy_fcgi does the forwarding, setenvif
@@ -59,6 +96,34 @@ RUN a2enmod proxy_fcgi setenvif \
  && test -n "$FPM_CONF" \
  && a2enconf "$FPM_CONF" \
  && echo "enabled $FPM_CONF"
+
+# The site vhost. Written here rather than by hand because /etc is a container
+# layer, not a volume: a rebuild discards anything created by hand in it.
+# Observed at step 4, the hard way. /var/www and /var/lib/mysql survive a rebuild
+# because they are named volumes. /etc/apache2 does not.
+#
+# DocumentRoot is /var/www/the-abyss, deliberately not Apache's default
+# /var/www/html, so the vhost is doing real work rather than coincidentally
+# matching a default. 000-default must be explicitly disabled: with no
+# ServerName match, Apache serves whichever vhost it loaded first, and leaving
+# both enabled shows the Apache welcome page instead of the site.
+#
+# The vhost is COPYed from docker/the-abyss.conf rather than generated here, and
+# that is deliberate on two counts. It stays a readable Apache config file, and
+# on a real host it is the same file in the same place with only ServerName
+# changing. It also fixes an escaping problem: Docker substitutes ${...} in RUN
+# instructions before the shell sees them, so generating this inline meant
+# getting ${APACHE_LOG_DIR} through a RUN, a single-quoted shell string, and
+# Apache's own expansion. The escape left a literal backslash in the file and the
+# build failed with "Cannot access directory /etc/apache2/\/var/log/apache2/".
+# Docker never substitutes inside a COPYed file, so the variable arrives intact.
+COPY the-abyss.conf /etc/apache2/sites-available/the-abyss.conf
+
+RUN mkdir -p /var/www/the-abyss \
+ && a2enmod rewrite \
+ && a2dissite 000-default \
+ && a2ensite the-abyss \
+ && apache2ctl configtest
 
 # sshd refuses to start without its privilege-separation directory, and the
 # package does not create it in a container build. ssh-keygen -A generates the

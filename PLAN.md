@@ -67,6 +67,7 @@ lives under *Hosting* below.
 | Apache with `mpm_event` and `php-fpm` | Lower memory than `mod_php` under `prefork`, and it keeps PHP in a separate process the web server cannot leak into |
 | MySQL, not MariaDB | WordPress supports both. Picking one and staying with it avoids subtle SQL-mode and collation differences between local and production |
 | Install by hand first, codify into a Dockerfile second | A Dockerfile written up front produces a working site and no understanding. Capturing verified commands produces both |
+| Codify per step, not all at the end | Established at step 2. Rebuilding to pick up a fix discards anything installed by hand, so verified commands go into the Dockerfile before the next rebuild rather than after all of them |
 | Classic theme with `theme.json` | Direct PHP markup control with a governed block-editor palette |
 | Fresh hand-built theme | Avoids carrying obsolete content models and identifiers into production |
 | Plain CSS initially | Keeps the first build simple |
@@ -97,6 +98,15 @@ Revisit if service management itself becomes the thing being learned.
 authentication, so the connection habit matches the eventual host. Only the
 public key is mounted, read-only. `docker compose exec web bash` remains the
 fallback for when SSH itself is the thing that is broken.
+
+**What survives a rebuild, audited at step 4.** This cost three rebuilds to
+learn, one component at a time, so it is recorded rather than rediscovered. The
+image holds the packages and everything under `/etc`, and a rebuild discards all
+of it, so it must be codified in the Dockerfile. The named volumes hold
+`/var/www`, which is the WordPress files and `wp-config.php`, and
+`/var/lib/mysql`, which is the database. Those survive, and must therefore never
+be baked into the image. `wp-config.php` in particular holds credentials and has
+no business in an image layer.
 
 **Two further places the mirror is thin, observed at step 1.** The container
 shares the host kernel rather than running Ubuntu's, so `uname -r` reports the
@@ -241,10 +251,15 @@ Phase A, the local environment:
 - [x] **Step 0, Git repository and ignore rules.**
 - [x] **Step 1, Ubuntu 24.04 container running over SSH, repository mounted,
       ports mapped.**
-- [ ] Step 2, install and configure Apache with `php-fpm` inside it.
-- [ ] Step 3, install MySQL, create the WordPress database and user.
-- [ ] Step 4, install WordPress and complete the setup.
-- [ ] Step 5, codify the verified commands into a Dockerfile and a compose file.
+- [x] **Step 2, Apache with `php-fpm` installed, configured, and codified.**
+- [x] **Step 3, MySQL installed, WordPress database and least-privilege user
+      created.**
+- [x] **Step 4, WordPress installed, configured by constant, and serving at
+      `http://localhost:8080`.**
+- [ ] Step 5, finish codifying. Apache, `php-fpm`, its extensions, the vhost, and
+      MySQL all landed in the Dockerfile during steps 2 to 4. Remaining: persist
+      the SSH host keys across rebuilds, and decide whether a from-scratch
+      machine self-provisions WordPress or documents the manual install.
 
 Phase B, the theme:
 
