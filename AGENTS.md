@@ -1125,9 +1125,22 @@ presented as a ledger and approved on 2026-07-29. Do not re-litigate or silently
 - **`--color-divider` is written as `rgba(32, 30, 29, 0.4)`.** The token is
   `color-mix(in srgb, #201e1d 40%, transparent)`. Identical colour, but
   `color-mix()` in a `theme.json` palette entry breaks the editor colour picker.
-- **Fluid typography is off.** Modernist specifies exact pixel sizes and states
-  density 1.00x is already baked into the scales. WordPress fluid typography
-  would rescale every one of them.
+- **Headings h1 to h4 are fluid, using `clamp()`.** Revised 2026-07-29,
+  replacing an earlier entry that recorded fluid typography as off. The reason
+  it changed: Modernist specifies exact pixel sizes and no breakpoints, and at a
+  fixed 42px an h1 overflowed a 332px content box (a 380px viewport less
+  padding) at about fifteen characters in one word. The maximum of each clamp is
+  the token value exactly, reached at roughly 960px, so the locked values still
+  hold at the width the design was drawn for. h5, h6, and body stay fixed
+  because they already fit the narrow box.
+- **Each clamp carries a `1rem +` term.** This is an accessibility requirement,
+  not a style choice. A pure `vw` clamp ignores the reader's browser font-size
+  setting and fails WCAG 1.4.4 on resize.
+- **`theme.json` keeps `fluid: false` while its `size` values contain
+  `clamp()`.** That combination is deliberate: `fluid: false` disables
+  WordPress's automatic fluidisation, whose scaling formula cannot be tuned, and
+  a `clamp()` in `size` then passes through untouched. It is what preserves the
+  maximum as the exact token value rather than a value WordPress derives.
 - **Radius lives in CSS, not `theme.json`.** `--radius-sm/md/lg` are all `0px`
   deliberately and WordPress has no global radius setting.
 - **`spacingSizes` has six entries.** The token sheet defines 1, 2, 3, 4, 6, and
@@ -1135,6 +1148,16 @@ presented as a ledger and approved on 2026-07-29. Do not re-litigate or silently
 - **`--abyss-content-width: 1240px` is not from the token sheet.** Modernist
   specifies a modular grid but no content width. Carried over from the prototype
   and still awaiting confirmation.
+
+**Any theme rule that styles a link must be scoped to its parent.** WordPress
+emits `theme.json`'s `elements.link` as
+`:root :where(a:where(:not(.wp-element-button)))`. The `:where()` wrappers
+contribute zero specificity, so the whole selector scores (0,1,0) from `:root`
+alone, identical to a single class. A single-class rule therefore ties and loses
+on source order, because the inline global styles print after the enqueued
+stylesheet. Observed at step 7: `.abyss-nav__brand` rendered in accent red and
+underlined until it became `.abyss-nav .abyss-nav__brand`. Use a more specific
+selector, never `!important`.
 
 Two findings about the fonts, recorded so they are not undone:
 

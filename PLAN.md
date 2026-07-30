@@ -355,7 +355,15 @@ Phase B, the theme:
 - [x] **Step 6, prototype stripped and `theme.json` derived from the Modernist
       tokens. Theme deployed by symlink, activated, and tokens verified in the
       rendered page.**
-- [ ] Step 7, build and prove the fresh `the-abyss` theme against the container.
+- [x] **Step 7a, header, nav, and `single.php` built and proven against a real
+      post.** Component families remain: see step 7b.
+- [ ] Step 7b, the component layer. `.abyss-card` and archive, then
+      `.abyss-btn` and `.abyss-tag`, then forms, table, and dialog. Also
+      `page.php`, `404.php`, `search.php`, and comments markup.
+- [ ] **Outstanding verification, carried into step 7b:** no CSS in this theme
+      has had a responsive pass at intermediate widths. The accessibility
+      baseline requires a wide and a narrow check with dragging between, and
+      only a single wide viewport has been observed.
 
 Phase C, hosting:
 

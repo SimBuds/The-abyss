@@ -56,10 +56,10 @@
 				{ "slug": "xs", "size": "13px", "name": "XS" },
 				{ "slug": "sm", "size": "15px", "name": "Body" },
 				{ "slug": "md", "size": "16px", "name": "MD" },
-				{ "slug": "lg", "size": "20px", "name": "LG" },
-				{ "slug": "xl", "size": "25px", "name": "XL" },
-				{ "slug": "2xl", "size": "32px", "name": "2XL" },
-				{ "slug": "3xl", "size": "42px", "name": "3XL" }
+				{ "slug": "lg", "size": "clamp(17px, 1rem + 0.42vw, 20px)", "name": "LG" },
+				{ "slug": "xl", "size": "clamp(19px, 1rem + 0.94vw, 25px)", "name": "XL" },
+				{ "slug": "2xl", "size": "clamp(22px, 1rem + 1.67vw, 32px)", "name": "2XL" },
+				{ "slug": "3xl", "size": "clamp(26px, 1rem + 2.7vw, 42px)", "name": "3XL" }
 			]
 		},
 		"spacing": {

@@ -46,14 +46,15 @@ holds real credentials.
 
 ## Current state
 
-Build steps 0 to 6 and step 8 are complete. WordPress runs locally at
+Build steps 0 to 7a and step 8 are complete. WordPress runs locally at
 `http://localhost:8080` on Apache with `php-fpm` and MySQL inside the container,
 the whole stack is codified in `docker/Dockerfile`, and the `the-abyss` theme is
-active with the Modernist tokens verified in the rendered page.
+active. A single post renders through `single.php` with the Modernist tokens
+verified in the page, not just in the files.
 
-Next is step 7, the component layer, then step 9, the read-only droplet
-inventory. The full roadmap and its checkboxes are in
-[`PLAN.md`](PLAN.md#status).
+Next is step 7b, the component layer, which opens with the responsive pass that
+no CSS in this theme has had yet. Then step 9, the read-only droplet inventory.
+The full roadmap and its checkboxes are in [`PLAN.md`](PLAN.md#status).
 
 ## Build log
 
@@ -512,3 +513,77 @@ states the accent-to-ground pair is tuned to about 3:1, enough for icons, large
 text, and interface chrome but not for body copy, and directs paragraph-size
 accent text to `--color-accent-700`. Links sit in running text. Recorded as an
 approved divergence in `AGENTS.md`.
+
+#### Step 7a — header, nav, and the single-post template ✅
+
+**Goal:** one complete reading experience, so the token mapping is proven against
+real content before any component family is built.
+
+**Why it matters:** a single article exercises the whole type scale, the 2px
+rules, the accent link colour, and the grid width at once. It is the fastest way
+to find out whether step 6's token mapping was right, and it found two things a
+component-first order would have delayed.
+
+**Commands:** repository files only. Verified against a published post.
+
+`theme/single.php` is new. `theme/header.php` gains a `nav` element with
+`wp_nav_menu` and `fallback_cb` set to false, so an unassigned menu renders
+nothing rather than a list of every published page. `theme/theme.json` layout
+becomes 960px content and 1440px wide. `theme/assets/css/main.css` gains the nav,
+the article, and the prose measure.
+
+Component classes are namespaced `abyss-`, decided 2026-07-29, because the design
+readme's bare names (`.btn`, `.card`, `.hr`, `.input`, `.table`) collide with core
+block markup. A class map in `main.css` translates readme name to theme name.
+
+**Verify:**
+
+```text
+class="abyss-nav"
+class="abyss-nav__brand"
+class="abyss-article post-11 post type-post ... category-finance"
+class="abyss-article__header"
+class="abyss-article__kicker"
+class="abyss-article__media grayscale"
+class="abyss-article__meta"
+class="abyss-article__content"
+class="... post-template-default single single-post postid-11 ... wp-theme-the-abyss"
+```
+
+`post-template-default single single-post` confirms WordPress chose the new
+template. `attachment-the-abyss-hero` confirms the custom image size is in use.
+The rendered page shows the FINANCE kicker in accent uppercase, an Archivo 800
+headline, a muted meta line, the 2px header rule, and the featured image in true
+black and white through the `grayscale` wrapper.
+
+WordPress reports the layout it was given, read from the page rather than the
+file: `--wp--style--global--content-size: 960px` and
+`--wp--style--global--wide-size: 1440px`.
+
+**Not verified.** No responsive pass has been done, on this or any earlier CSS.
+The accessibility baseline requires a wide and a narrow viewport with dragging
+between them, and only one wide viewport has been observed. Carried into step 7b
+as the first item rather than recorded as passing.
+
+**Q&A:**
+
+*The site brand rendered in accent red and underlined instead of ink. Why?*
+WordPress emits `theme.json`'s `elements.link` as
+`:root :where(a:where(:not(.wp-element-button)))`. The `:where()` wrappers
+contribute zero specificity, so that selector scores (0,1,0) from `:root` alone,
+tying with a single class and winning on source order because the inline global
+styles print after the stylesheet. Fixed by scoping to
+`.abyss-nav .abyss-nav__brand`, which is (0,2,0). Every theme rule that styles a
+link now carries a parent selector. Recorded in `AGENTS.md`.
+
+*Three paragraphs rendered at three different sizes. Was that a bug?* No. The
+markup carries `has-xl-font-size`, `has-lg-font-size`, and `has-md-font-size`,
+which are the `theme.json` presets applied by the editor's size picker. Authored
+content, not inherited styling. It doubled as unplanned proof that the font-size
+scale resolves end to end from `theme.json` to the rendered class.
+
+*Why is 960px the content width when the design system is the locked source of
+truth?* Modernist specifies a modular grid but no content width, so this is a
+documented gap rather than a token. 960px at 15px runs to roughly 120 characters
+per line, so paragraph text inside article content is separately capped at 70ch.
+The grid keeps its width, the prose does not.
