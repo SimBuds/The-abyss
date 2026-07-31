@@ -48,9 +48,31 @@ These apply to the eventual public site regardless of who hosts it.
 - TLS before the site is public, real credentials are used, or content is
   indexed.
 - Automated database and file backups with tested restore instructions.
-- `rel="sponsored nofollow"` on every affiliate link.
-- Visible FTC and Competition Bureau disclosures.
-- Author and review-date schema for finance content.
+- `rel="sponsored nofollow"` on every affiliate link. **Built** in the theme as
+  a `the_content` filter, so it does not depend on an author tagging links.
+- Visible FTC and Competition Bureau disclosures. **Built** as a companion
+  filter: an article containing a link to a monetised domain gets a disclosure
+  prepended above its first paragraph. Both regimes want a disclosure the reader
+  meets before acting on the link, so placement is the requirement, not merely
+  presence. The wording is a starting point and has had no legal review.
+- **Both key off one list of monetised domains**, empty by default and set
+  through the `the_abyss_affiliate_domains` filter. Corrected 2026-07-31 after a
+  real post exposed the first version: it treated every outbound link as an
+  affiliate link, which tagged editorial citations to news sites as paid
+  placements and printed an affiliate disclosure on an article that earned
+  nothing. Both are misstatements. Marking a citation `sponsored` throws away
+  the editorial signal the link was there to give, and a disclosure that cries
+  wolf trains readers to skip it on the articles where it is true. The list
+  costs one line per programme joined, which is far weaker discipline than
+  per-link tagging and is the reason this stays structural.
+  **The list is currently empty**, so no link is tagged and no disclosure
+  renders until the first programme is added.
+- Author and review-date schema for finance content. **Built** as `Article`
+  JSON-LD on single posts and pages, carrying author, `datePublished`, and
+  `dateModified` only when the post really was revised, matching the visible
+  line exactly. Deliberately no `Review` or `aggregateRating`: marking up an
+  affiliate comparison as a rating is what Google's self-serving-review policy
+  prohibits, and the penalty is a manual action rather than a lost rich result.
 - Least-privilege access, firewall rules, OS hardening, and monitoring.
 - No public MySQL port.
 - Self-hosted fonts and no unnecessary third-party font requests.
@@ -166,13 +188,33 @@ same values as `--abyss-*` custom properties. The approved divergences are
 recorded in `AGENTS.md` under *Design system divergences*, which is where the
 fidelity gate requires them.
 
-Still outstanding for step 7: the rest of the component layer. The readme's class
-list (`.btn`, `.tag`, `.card`, `.nav`, `.table`, `.dialog`, `.field`, `.input`,
-`.radio`, `.seg`) has no markup in the export, so each is written against the
-written spec rather than copied. `main.css` implements the foundations (base
-type, links, focus, selection, the `.grayscale` wrapper, the 2px rule), the nav,
-the article, and as of 2026-07-31 the `.card` family and post grid. Remaining:
-`.btn`, `.tag`, `.field`, `.input`, `.radio`, `.seg`, `.table`, `.dialog`.
+The component layer is complete as of 2026-07-31. The readme's class list
+(`.btn`, `.tag`, `.card`, `.nav`, `.table`, `.dialog`, `.field`, `.input`,
+`.radio`, `.seg`) has no markup in the export, so each was written against the
+written spec rather than copied. `main.css` now carries all of them plus the
+foundations (base type, links, focus, selection, the `.grayscale` wrapper, the
+2px rule), the nav, and the article. The one omission is `.tag-accent-2`, which
+the ledger explains.
+
+Not every component has a consumer yet, and that is tracked rather than assumed:
+`.abyss-card` is used by `index.php`, `.abyss-tag` by `single.php`,
+`.abyss-input` and `.abyss-btn` by `searchform.php`, and `.abyss-table` by the
+core table block in post content. `.abyss-radio`, `.abyss-seg`, and the dialog
+family have none. Radio and seg are waiting on comment forms and filtering. The
+dialog has no natural consumer in a reading site at all and is implemented for
+completeness of the class map; anything that does need a modal should use the
+native `<dialog>` element with `showModal()`, because these classes are
+presentation only and provide no focus trap, Escape handling, or `aria-modal`.
+
+**Accessibility drove five divergences from the token sheet**, all measured and
+all in the `AGENTS.md` ledger. Four are the same number: accent-coloured text and
+accent fills behind text measure 3.76:1, and nothing legible sits on the accent
+at interface sizes, so `.abyss-btn--primary`, `.abyss-btn--ghost`,
+`.abyss-tag--outline`, and the checked `.abyss-seg__opt` all move to
+`accent-700`. The fifth is WCAG 1.4.11: control borders at the divider token
+measure 2.38:1 against the surface, so `.abyss-input`, `.abyss-radio__dot`, and
+`.abyss-seg` use `neutral-600`. The divider token itself is unchanged, because
+decorative rules identify no component.
 
 Two card-layer selectors have no counterpart in the token sheet and are recorded
 in the `AGENTS.md` ledger as a documented gap rather than as tokens: `.abyss-grid`
@@ -206,30 +248,40 @@ font stack, or a pixel value that a token already carries.
 - `README.md` still describes an AWS build under *At a glance*. It is corrected
   after the local environment is proven, not before.
 
-## Hosting: the existing DigitalOcean droplet
+## Hosting: a dedicated DigitalOcean droplet
 
-Decided 2026-07-29, ahead of the Step 8 checkpoint the roadmap planned. The
-deciding fact was not on the criteria list: a droplet already exists, already
-paid for, serving the live portfolio site. Marginal cost is zero, and
-everything the container taught (SSH, Apache vhosts, php-fpm, MySQL, and
-WordPress installed by hand) transfers directly. AWS is demoted to the
-deferred candidate below with its banked work intact. The criteria below are
-kept as the record Step 8 would have used, and they govern any future
-re-decision.
+DigitalOcean decided 2026-07-29, ahead of the Step 8 checkpoint the roadmap
+planned. AWS is demoted to the deferred candidate below with its banked work
+intact. The criteria below are kept as the record Step 8 would have used, and
+they govern any future re-decision.
 
-**Shared-host constraint.** The droplet serves a live portfolio site, and
-that inverts the ground rules the container established. Ports 80 and 443 are
-occupied, a vhost configuration and TLS already exist and belong to another
-product, and MySQL may already hold databases and users that are not this
-project's. Commands that were safe in the fresh container are destructive
-here, including `a2dissite 000-default`, any web server reload against an
-unverified config, and any database or user creation before listing what
-exists. Every mutating droplet step is risky tier under `AGENTS.md`, asked
-before each action. The first droplet step is therefore a read-only inventory
-of what the portfolio site currently uses (ports, vhosts, web server and PHP
-versions, MySQL layout, TLS), taken and recorded before anything is installed
-or changed. A mistake on this host takes down a live site that is not
-The-abyss.
+**Revised 2026-07-31: The-abyss gets its own droplet.** A second droplet was
+created for this site, so it no longer shares a host with the live portfolio.
+Two consequences, both recorded rather than quietly absorbed:
+
+- **The stated reason for the decision no longer holds.** It was chosen because
+  a paid-for droplet already existed and marginal cost was therefore zero. A
+  second droplet is a new monthly line item, so cost is now a real comparison
+  against the deferred AWS candidate rather than a walkover. The decision is
+  still judged correct on the criteria below, particularly operational
+  simplicity and the direct transfer of everything the container taught, but it
+  now rests on those criteria instead of on being free.
+- **The shared-host constraint is withdrawn.** It described a host whose ports,
+  vhosts, TLS, and MySQL belonged to another product, which made ordinary
+  provisioning commands destructive. On a dedicated droplet none of that is
+  true: ports 80 and 443 are free, no vhost belongs to anyone else, and MySQL
+  holds nothing. Provisioning steps there are ordinary tier under `AGENTS.md`
+  while the droplet serves no live traffic, and become risky tier the moment it
+  does.
+
+**The portfolio droplet is out of scope.** It is not this project's host, and no
+step in this plan touches it. Its existence remains relevant only as the reason
+the account and the DigitalOcean workflow were already familiar.
+
+**What does not relax.** A dedicated droplet is still a public internet-facing
+machine from the hour it boots. SSH hardening, a firewall, and no password
+authentication are day-one work, not go-live work, and the absence of a live
+site on it is not a reason to defer them.
 
 ### Decision criteria
 
@@ -319,18 +371,26 @@ it starts.
 
 ### What the Step 9 inventory must record
 
-The droplet is the chosen host rather than a candidate, so these are no longer
-research questions. They are what the read-only inventory answers before
-anything is installed, and several of them belong to the portfolio site rather
-than to this project:
+Rewritten 2026-07-31, when the host became a dedicated droplet. The original
+list assumed a shared host and was mostly about what the portfolio site already
+occupied. On a droplet of this project's own, most of those questions answer
+themselves, and the inventory shrinks to establishing the starting point:
 
-- Droplet size, region, and what the existing site needs of it.
-- Ubuntu version, and whether it matches the container's 24.04.
-- Web server and PHP versions already installed, and which vhosts are enabled.
-- What occupies ports 80 and 443, and how TLS is currently issued and renewed.
-- MySQL or MariaDB, its version, and which databases and users already exist.
-- Backup and snapshot arrangements already in place.
-- How shell access and firewalling are configured today.
+- Droplet size and region, and the disk and memory the plan has to fit inside.
+- Ubuntu version, and whether it matches the container's 24.04. A mismatch
+  means some of what the Dockerfile codified does not transfer as written.
+- **What the image already installed.** This is the load-bearing question. A
+  plain Ubuntu image arrives with none of the stack, which is what this project
+  wants: the container exists to make the by-hand install transferable. A
+  DigitalOcean marketplace WordPress image arrives with Apache, PHP, MySQL,
+  WordPress, and a configured vhost already in place, which would skip the
+  entire thing the build was structured to teach.
+- Whether anything already listens on 80 or 443.
+- How SSH is configured as delivered: root login, password authentication, port.
+- Whether a firewall is active, at the droplet and at the DigitalOcean cloud
+  firewall layer, which are two separate things.
+- Whether automatic backups are enabled. This is a control panel setting and is
+  not visible from the shell.
 
 Recording the answers is Step 9's deliverable. Nothing is changed while taking
 them.
@@ -364,13 +424,21 @@ Phase B, the theme:
       rendered page.**
 - [x] **Step 7a, header, nav, and `single.php` built and proven against a real
       post.** Component families remain: see step 7b.
-- [ ] Step 7b, the component layer. Done 2026-07-31: `.abyss-card` and the card
-      grid, plus `index.php` handling of the archive, search-results, and
-      no-results paths, verified against three published posts of differing
-      excerpt length and both search outcomes. Remaining: `.abyss-btn` and
-      `.abyss-tag`, then forms, table, and dialog. Also `page.php`, `404.php`,
-      a dedicated `search.php`, and comments markup. `index.php` already covers
-      search acceptably, so `search.php` is a refinement rather than a gap.
+- [x] **Step 7b, the component layer, written 2026-07-31.** Every family in the
+      design readme is implemented, plus `searchform.php`, `page.php`,
+      `404.php`, and `comments.php`. `index.php` covers search acceptably, so a
+      dedicated `search.php` is a refinement rather than a gap. See the
+      verification gap below before treating any of it as proven.
+- [ ] **Verification gap, carried out of step 7b.** What has rendered in a
+      browser is narrower than what has been written: the card grid, both search
+      paths, the 404, the header and article, and the responsive drag. Not yet
+      seen at all: `.abyss-radio`, `.abyss-seg`, `.abyss-table`, the dialog, and
+      the whole comment thread and form. `.abyss-btn` and `.abyss-input` have
+      rendered once, in the search form. Two smaller items also open: the
+      `filemtime()` cache-busting change has never been confirmed in page
+      source, and the `accent-700` primary-button fill is a visual call nobody
+      has ruled on now that it is visible. None of this blocks step 9, but it is
+      a debt against the theme, not a finished surface.
 - [x] **Responsive pass done 2026-07-31.** Dragged 1600px to 380px with no
       horizontal scrollbar at any width, headings visibly smaller at the narrow
       end, and browser zoom confirming the `1rem +` term in each clamp responds
@@ -382,13 +450,16 @@ Phase B, the theme:
 
 Phase C, hosting:
 
-- [x] **Step 8, hosting decided: the existing DigitalOcean droplet.** Decided
-      ahead of schedule on 2026-07-29. The decision record and the shared-host
-      constraint are under *Hosting* above.
-- [ ] Step 9, read-only inventory of the droplet and the portfolio site it
-      serves. Nothing is installed or changed in this step.
-- [ ] Step 10 onward, planned against the inventory once it exists, because a
-      shared host's steps depend on what is already running there.
+- [x] **Step 8, hosting decided: DigitalOcean.** Decided ahead of schedule on
+      2026-07-29, and revised 2026-07-31 when a dedicated droplet was created
+      for this site. Both the decision and what the revision changed are under
+      *Hosting* above.
+- [ ] Step 9, read-only inventory of the dedicated droplet. Establishes the
+      starting point, above all what the chosen image already installed.
+      Nothing is installed or changed in this step.
+- [ ] Step 10 onward, planned against the inventory once it exists. On a
+      dedicated droplet this is expected to follow the container's sequence
+      closely, which is what the container was built to make possible.
 
 Step 6 gates Step 7, because template implementation needs the token layer
 settled first. Step 5 gates nothing but should not be skipped, since an

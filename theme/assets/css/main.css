@@ -97,16 +97,20 @@
  *   .grayscale        -> .grayscale         (unchanged, no collision risk)
  *   .nav              -> .abyss-nav         (implemented)
  *   .nav-brand        -> .abyss-nav__brand  (implemented)
- *   .btn, .btn-*      -> .abyss-btn, .abyss-btn--*        (phase 9)
- *   .tag, .tag-*      -> .abyss-tag, .abyss-tag--*        (phase 9)
+ *   .btn, .btn-*      -> .abyss-btn, .abyss-btn--*        (implemented)
+ *   .tag, .tag-*      -> .abyss-tag, .abyss-tag--*        (implemented,
+ *                        minus .tag-accent-2, see the tag section for why)
  *   .card, .card-*    -> .abyss-card, .abyss-card__*      (phase 8)
  *   .elev-sm/md/lg    -> .abyss-elev--sm/md/lg            (phase 8)
- *   .field, .input    -> .abyss-field, .abyss-input       (phase 10)
- *   .radio, .dot      -> .abyss-radio, .abyss-radio__dot  (phase 10)
- *   .seg, .seg-opt    -> .abyss-seg, .abyss-seg__opt      (phase 10)
- *   .table            -> .abyss-table                     (phase 10)
- *   .dialog-backdrop  -> .abyss-dialog-backdrop           (phase 10)
- *   .dialog, .dialog-*-> .abyss-dialog, .abyss-dialog__*  (phase 10)
+ *   .field, .input    -> .abyss-field, .abyss-input       (implemented)
+ *   .radio, .dot      -> .abyss-radio, .abyss-radio__dot  (implemented)
+ *   .seg, .seg-opt    -> .abyss-seg, .abyss-seg__opt      (implemented)
+ *   .table            -> .abyss-table                     (implemented, also
+ *                        applied to the core table block)
+ *   .dialog-backdrop  -> .abyss-dialog-backdrop           (implemented)
+ *   .dialog, .dialog-*-> .abyss-dialog, .abyss-dialog__*  (implemented)
+ *
+ * Every family in the readme's component list is now implemented.
  */
 
 *,
@@ -245,9 +249,14 @@ img.grayscale {
 	margin: var(--abyss-space-8) 0;
 }
 
-/* Chrome spans the wide width, the reading column takes the content width. */
+/* Chrome spans the wide width, the reading column takes the content width.
+   Both header and footer split the same way: the outer element is unconstrained
+   and carries the 2px rule, so the rule runs the full width of the viewport, and
+   the inner element carries the cap and the padding. Collapsing either into one
+   element makes that side's rule stop at 1440px while the other's runs edge to
+   edge. */
 .site-header__inner,
-.site-footer {
+.site-footer__inner {
 	max-width: var(--abyss-width-wide);
 	margin-inline: auto;
 	padding-inline: var(--abyss-space-6);
@@ -277,6 +286,9 @@ img.grayscale {
 	margin-top: var(--abyss-space-8);
 	padding-block: var(--abyss-space-6);
 	border-top: 2px solid var(--abyss-color-divider);
+
+	/* neutral-700 on the ground is 5.84:1, so the footer reads as secondary
+	   without dropping below the 4.5:1 body-text threshold. */
 	color: var(--abyss-color-neutral-700);
 }
 
@@ -465,6 +477,670 @@ img.grayscale {
 .abyss-elev--lg { box-shadow: var(--abyss-shadow-lg); }
 
 /* ---------------------------------------------------------------------------
+   Buttons. The readme's .btn family.
+
+   Geometry, type, and spacing are the token sheet's verbatim. Two colour values
+   are not; both are recorded in the AGENTS.md ledger and explained inline.
+
+   Every colour rule here is written as `a.abyss-btn...` as well as
+   `.abyss-btn...`. A button is as often an `<a>` as a `<button>`, and an `<a>`
+   is subject to theme.json's elements.link, which WordPress emits at (0,1,0)
+   for colour and (0,2,0) for :hover. A bare class ties and loses on source
+   order. Qualifying with the element takes each rule one id-less step higher.
+   The :hover colours are restated for the same reason: without them a primary
+   button that happens to be a link turns accent-800 text on an accent-800 fill
+   the moment the pointer touches it.
+   --------------------------------------------------------------------------- */
+
+.abyss-btn {
+	display: inline-flex;
+	align-items: center;
+
+	/* Verbatim from the token sheet, and in tension with the readme, which says
+	   labels are flush left and "do not center button labels". The two only
+	   disagree when a button is wider than its label, and the one variant where
+	   that happens, .abyss-btn--block, sets flex-start itself. Centering is
+	   load-bearing for .abyss-btn--icon, which is a fixed 36px square. Kept as
+	   the sheet has it; if a stretched button ever appears outside --block, this
+	   is the line that will center it wrongly. */
+	justify-content: center;
+
+	gap: 6px;
+	cursor: pointer;
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+
+	/* 14px matches .abyss-input, because the pair sits side by side in sign-up
+	   rows. Do not tune one without the other. */
+	font-size: 14px;
+	line-height: 1.2;
+	background: transparent;
+	border: 1px solid transparent;
+	padding: var(--abyss-space-2) calc(var(--abyss-space-3) * 1.2);
+	border-radius: var(--abyss-radius-md);
+}
+
+.abyss-btn,
+a.abyss-btn,
+a.abyss-btn:hover {
+	color: var(--abyss-color-text);
+	text-decoration: none;
+}
+
+.abyss-btn svg {
+	display: block;
+}
+
+.abyss-btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+/* DIVERGENCE: the fill is accent-700, not the accent. Nothing legible sits on
+   #ec3013 at 14px. Measured against the ground token it is 3.76:1, against ink
+   3.95:1, and against pure white 4.20:1, all short of the 4.5:1 that WCAG 1.4.3
+   requires for text below 18.66px bold. The readme says so itself: the accent
+   is for "icons, large text, and interface chrome", and paragraph-size accent
+   text goes to accent-700. accent-700 on the ground token measures 6.41:1.
+   Hover and active step down the ramp from there rather than from the accent. */
+.abyss-btn--primary {
+	background: var(--abyss-color-accent-700);
+}
+
+.abyss-btn--primary,
+a.abyss-btn--primary,
+a.abyss-btn--primary:hover {
+	color: var(--abyss-color-bg);
+}
+
+.abyss-btn--primary:hover {
+	background: var(--abyss-color-accent-800);
+}
+
+.abyss-btn--primary:active {
+	background: var(--abyss-color-accent-900);
+}
+
+.abyss-btn--secondary {
+	border-color: var(--abyss-color-divider);
+}
+
+/* The token sheet uses color-mix at 7% and 14% of the text colour. Written as
+   rgba for the same reason the divider is, and the same computed colour. */
+.abyss-btn--secondary:hover {
+	background: rgba(32, 30, 29, 0.07);
+}
+
+.abyss-btn--secondary:active {
+	background: rgba(32, 30, 29, 0.14);
+}
+
+/* DIVERGENCE, same measurement as the primary fill: ghost is accent-coloured
+   text on the ground at 14px, which is the 3.76:1 case the readme explicitly
+   routes to accent-700. The tinted hover and active washes stay keyed to the
+   accent itself, because those are backgrounds and carry no text. */
+.abyss-btn--ghost {
+	padding-inline: var(--abyss-space-1);
+}
+
+.abyss-btn--ghost,
+a.abyss-btn--ghost,
+a.abyss-btn--ghost:hover {
+	color: var(--abyss-color-accent-700);
+}
+
+.abyss-btn--ghost:hover {
+	background: rgba(236, 48, 19, 0.1);
+}
+
+.abyss-btn--ghost:active {
+	background: rgba(236, 48, 19, 0.18);
+}
+
+.abyss-btn--icon {
+	width: 36px;
+	height: 36px;
+	padding: 0;
+}
+
+/* The readme's flush-left rule made literal: a button wider than its label
+   starts the text at the left padding edge, trailing icon and all. */
+.abyss-btn--block {
+	width: 100%;
+	margin-top: var(--abyss-space-2);
+	justify-content: flex-start;
+	text-align: left;
+}
+
+/* ---------------------------------------------------------------------------
+   Tags. The readme's .tag family.
+
+   .tag-accent-2 is deliberately absent. The readme states the scheme is mono
+   and that accent-2 "reads the same as accent", and the approved ledger entry
+   keeps the accent-2 ramp out of the theme entirely. Implementing it would mean
+   adding nine custom properties to produce a visual duplicate of
+   .abyss-tag--accent.
+   --------------------------------------------------------------------------- */
+
+.abyss-tag {
+	display: inline-flex;
+	align-items: center;
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	padding: 3px 10px;
+
+	/* calc against the radius token rather than a literal 0, so the 0.75
+	   relationship survives if radius is ever unlocked. Resolves to 0px today. */
+	border-radius: calc(var(--abyss-radius-md) * 0.75);
+}
+
+.abyss-tag--accent,
+a.abyss-tag--accent,
+a.abyss-tag--accent:hover {
+	background: var(--abyss-color-accent-100);
+	color: var(--abyss-color-accent-800);
+}
+
+.abyss-tag--neutral,
+a.abyss-tag--neutral,
+a.abyss-tag--neutral:hover {
+	background: var(--abyss-color-neutral-100);
+	color: var(--abyss-color-neutral-800);
+}
+
+/* DIVERGENCE, third instance of the same measurement: the border stays the
+   accent, which is a non-text element and fine at 3:1. The label moves to
+   accent-700. At 11px it is the smallest accent text in the system and the
+   least defensible place to keep 3.76:1. */
+.abyss-tag--outline {
+	border: 1px solid var(--abyss-color-accent);
+}
+
+.abyss-tag--outline,
+a.abyss-tag--outline,
+a.abyss-tag--outline:hover {
+	color: var(--abyss-color-accent-700);
+}
+
+/* Tags render as links wherever they carry a taxonomy term. Underlining a row
+   of pills reads as noise, so the tint carries the affordance and the underline
+   returns on hover. */
+a.abyss-tag {
+	text-decoration: none;
+}
+
+a.abyss-tag:hover {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Forms. The readme's .field, .input, .radio, .seg families.
+
+   Native elements only, no script, per the readme. Geometry and type are the
+   token sheet's verbatim. One colour value is not: the border on every control
+   boundary. See the DIVERGENCE note on .abyss-input.
+   --------------------------------------------------------------------------- */
+
+.abyss-field > label {
+	display: block;
+	font-size: 12px;
+	margin-bottom: 5px;
+
+	/* color-mix at 70% of the text colour, written as rgba. 5.79:1 on the
+	   ground, so it passes as body-size text despite reading as a soft label. */
+	color: rgba(32, 30, 29, 0.7);
+}
+
+/* DIVERGENCE: control boundaries use neutral-600, not the divider token.
+   The divider is `rgba(32, 30, 29, 0.4)`, which composites to about 2.38:1
+   against the surface behind an input and 2.58:1 against the ground. WCAG 1.4.11
+   requires 3:1 for the visual information that identifies a user interface
+   component, and the border is the only thing identifying these controls: the
+   surface and ground tokens differ by 1.08:1, so the fill cannot do it.
+   neutral-600 measures 3.85:1 on the ground and 3.55:1 on the surface. Applies
+   to .abyss-input, .abyss-radio__dot, and .abyss-seg.
+
+   The divider token is untouched everywhere else. The 2px section rules are
+   decorative and identify no component, so 1.4.11 does not reach them. */
+.abyss-input {
+	width: 100%;
+	min-height: 36px;
+	padding: 6px 10px;
+	font: inherit;
+
+	/* Matches .abyss-btn's 14px. The pair sits side by side in sign-up rows. */
+	font-size: 14px;
+	color: var(--abyss-color-text);
+	caret-color: var(--abyss-color-accent);
+	background: var(--abyss-color-surface);
+	border: 1px solid var(--abyss-color-neutral-600);
+	border-radius: var(--abyss-radius-md);
+}
+
+/* The sheet's hover is a lighter mix than its resting border. With the resting
+   border darkened for 1.4.11, that would have made hover step backwards, so
+   hover moves one down the same ramp instead: 600 resting, 700 hover, accent on
+   focus. */
+.abyss-input:hover {
+	border-color: var(--abyss-color-neutral-700);
+}
+
+/* offset 0 rather than the global 2px, so the ring sits on the border it is
+   replacing rather than floating off a field that already has an edge. */
+.abyss-input:focus-visible {
+	border-color: var(--abyss-color-accent);
+	outline-offset: 0;
+}
+
+textarea.abyss-input {
+	min-height: 90px;
+	resize: vertical;
+}
+
+.abyss-radio {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+/* The native input stays in the accessibility tree and keeps its own keyboard
+   behaviour. It is moved out of sight rather than hidden, because display:none
+   or visibility:hidden would take it out of the tab order and out of the tree,
+   which is what makes a hand-rolled radio unusable. */
+.abyss-radio input,
+.abyss-seg__opt input {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+}
+
+.abyss-radio__dot {
+	width: 16px;
+	height: 16px;
+	flex: none;
+	border-radius: 50%;
+	border: 1.5px solid var(--abyss-color-neutral-600);
+}
+
+.abyss-radio:hover .abyss-radio__dot {
+	border-color: var(--abyss-color-accent);
+}
+
+/* The checked state is a filled accent disc with the ground punched back
+   through it as an inset ring, so the control reads as selected by shape as
+   well as by colour. */
+.abyss-radio input:checked + .abyss-radio__dot {
+	border-color: var(--abyss-color-accent);
+	background: var(--abyss-color-accent);
+	box-shadow: inset 0 0 0 4px var(--abyss-color-bg);
+}
+
+/* Focus has to be drawn on the visible proxy, because the real input carries no
+   pixels for a ring to sit on. */
+.abyss-radio input:focus-visible + .abyss-radio__dot {
+	outline: 2px solid var(--abyss-color-accent);
+	outline-offset: 2px;
+}
+
+.abyss-seg {
+	display: inline-flex;
+	overflow: hidden;
+	border: 1px solid var(--abyss-color-neutral-600);
+	border-radius: var(--abyss-radius-md);
+}
+
+.abyss-seg__opt {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 7px 12px;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.abyss-seg__opt + .abyss-seg__opt {
+	border-left: 1px solid var(--abyss-color-neutral-600);
+}
+
+/* DIVERGENCE, the same measurement as .abyss-btn--primary: a 13px label on an
+   accent fill is 3.76:1 and WCAG 1.4.3 wants 4.5:1. accent-700 measures 6.41:1
+   against the ground token. Fourth instance of this one number. */
+.abyss-seg__opt:has(input:checked) {
+	background: var(--abyss-color-accent-700);
+	color: var(--abyss-color-bg);
+}
+
+.abyss-seg__opt:not(:has(input:checked)):hover {
+	background: rgba(32, 30, 29, 0.07);
+}
+
+/* Inset, so the ring is drawn inside the group's own border rather than
+   straddling it. */
+.abyss-seg__opt:has(input:focus-visible) {
+	outline: 2px solid var(--abyss-color-accent);
+	outline-offset: -2px;
+}
+
+/* The search form is a label, a field, and a button on one row, wrapping to two
+   when the column is too narrow. The label is visually hidden rather than
+   dropped: a search input with only placeholder text has no accessible name
+   once the reader starts typing. */
+.abyss-search-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--abyss-space-2);
+	align-items: flex-start;
+}
+
+.abyss-search-form .abyss-field {
+	flex: 1 1 12rem;
+}
+
+/* The button computes to about 34.8px tall from its padding and line-height,
+   against the input's 36px minimum, so the pair sits a fraction out of line.
+   Matched here rather than on .abyss-btn itself: the sheet intends these two to
+   pair up side by side, but a button standing alone should keep the height its
+   own padding gives it. */
+.abyss-search-form .abyss-btn {
+	min-height: 36px;
+}
+
+/* ---------------------------------------------------------------------------
+   Tables. The readme's .table.
+
+   Applied to the core table block as well as to the bare class, because the
+   consumer here is an author inserting a table into a post, not markup this
+   theme writes. Without the block selector the component would be correct and
+   never once used.
+   --------------------------------------------------------------------------- */
+
+.abyss-table,
+.abyss-article__content .wp-block-table table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+}
+
+/* DIVERGENCE: the header label is rgba(32, 30, 29, 0.7), not the sheet's 60%
+   mix. At 60% it composites to 4.24:1 on the ground, just short of the 4.5:1
+   WCAG 1.4.3 asks for at 11px. 70% measures 5.79:1, and is the same value
+   .abyss-field > label already uses, so muted label text is now one number
+   across the system rather than two that differ by an invisible amount. */
+.abyss-table th,
+.abyss-article__content .wp-block-table th {
+	text-align: left;
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: rgba(32, 30, 29, 0.7);
+	padding: var(--abyss-space-2);
+	border-bottom: 2px solid var(--abyss-color-divider);
+}
+
+/* Row rules keep the divider token. They separate data, they do not identify an
+   interactive control, so WCAG 1.4.11 does not reach them and the control-border
+   divergence above does not apply here. */
+.abyss-table td,
+.abyss-article__content .wp-block-table td {
+	padding: var(--abyss-space-2);
+	border-bottom: 1px solid var(--abyss-color-divider);
+}
+
+.abyss-table tbody tr:hover,
+.abyss-article__content .wp-block-table tbody tr:hover {
+	background: rgba(32, 30, 29, 0.04);
+}
+
+/* A table is the one element in running text that legitimately refuses to get
+   narrower, and the theme carries no `overflow-x: hidden` to paper over it. It
+   scrolls inside its own figure instead, which is what keeps the promise that
+   the page itself never scrolls sideways. tabindex is not set here; browsers
+   make a scrollable region keyboard-reachable on their own, and a tabindex on a
+   figure would add a stop that announces nothing. */
+.abyss-article__content .wp-block-table {
+	overflow-x: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Dialog. The readme's .dialog-backdrop / .dialog family.
+
+   No consumer in this theme, and unlike the button that is not a matter of
+   sequencing: a reading site has nothing to put in a modal. It is implemented
+   because it completes the component layer the class map promises, and because
+   writing it later, under pressure, is how a modal ends up with a browser
+   default focus ring and no escape key.
+
+   What is here is presentation only. A real modal also needs focus trapping, an
+   Escape handler, `aria-modal`, inert background content, and focus returned to
+   whatever opened it. Prefer the native `<dialog>` element with `showModal()`,
+   which provides all of that, over reaching for these classes on a `<div>`.
+   --------------------------------------------------------------------------- */
+
+.abyss-dialog-backdrop {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding: var(--abyss-space-4);
+
+	/* color-mix at 50% of neutral-900, written as rgba. */
+	background: rgba(45, 43, 43, 0.5);
+}
+
+/* min() rather than a max-width so the dialog is 440px when there is room and
+   exactly the viewport less its padding when there is not. */
+.abyss-dialog {
+	width: min(440px, 100%);
+	display: flex;
+	flex-direction: column;
+	gap: var(--abyss-space-3);
+	padding: var(--abyss-space-4);
+	border-radius: var(--abyss-radius-lg);
+	background: var(--abyss-color-surface);
+	box-shadow: var(--abyss-shadow-lg);
+}
+
+.abyss-dialog__title {
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	font-size: 20px;
+	margin: 0;
+}
+
+.abyss-dialog__body {
+	font-size: 14px;
+	opacity: 0.85;
+}
+
+/* The one place the design's flush-left rule does not apply, per the sheet:
+   dialog actions sit at the trailing edge. */
+.abyss-dialog__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--abyss-space-2);
+	margin-top: var(--abyss-space-2);
+}
+
+/* ---------------------------------------------------------------------------
+   Comments.
+
+   Core's comment walker emits its own class names and this styles them where
+   they land, the same decision as binding .abyss-table to the core table block.
+   Replacing the walker would mean maintaining a copy of WordPress's markup
+   forever for a part of the page nobody redesigns.
+   --------------------------------------------------------------------------- */
+
+.abyss-comments {
+	max-width: var(--abyss-prose-width);
+	margin-top: var(--abyss-space-8);
+	padding-top: var(--abyss-space-6);
+	border-top: 2px solid var(--abyss-color-divider);
+}
+
+.abyss-comments__title {
+	font-size: 19px;
+	margin-bottom: var(--abyss-space-6);
+}
+
+.abyss-comments__list,
+.abyss-comments__list .children {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/* Replies indent, but only by one step and only where there is room. A thread
+   several levels deep would otherwise squeeze its own text column to nothing on
+   a phone, so the indent collapses below the narrow breakpoint. */
+.abyss-comments__list .children {
+	margin-left: var(--abyss-space-6);
+	padding-left: var(--abyss-space-4);
+	border-left: 2px solid var(--abyss-color-divider);
+}
+
+@media (max-width: 480px) {
+	.abyss-comments__list .children {
+		margin-left: var(--abyss-space-2);
+		padding-left: var(--abyss-space-3);
+	}
+}
+
+.abyss-comments__list .comment-body {
+	padding-block: var(--abyss-space-4);
+	border-bottom: 1px solid var(--abyss-color-divider);
+}
+
+.abyss-comments__list .comment-author {
+	display: flex;
+	align-items: center;
+	gap: var(--abyss-space-2);
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	font-size: 14px;
+}
+
+.abyss-comments__list .comment-author img {
+	flex: none;
+}
+
+.abyss-comments__list .comment-meta {
+	font-size: 11px;
+	color: var(--abyss-color-neutral-700);
+	margin-bottom: var(--abyss-space-2);
+}
+
+.abyss-comments__list .reply {
+	font-size: 13px;
+}
+
+.abyss-comments__notes,
+.abyss-comments__closed {
+	font-size: 13px;
+	color: var(--abyss-color-neutral-700);
+}
+
+.abyss-comment-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--abyss-space-4);
+	margin-top: var(--abyss-space-6);
+}
+
+/* The submit button is the one place a .abyss-btn should not stretch to the
+   form's width, so it is pulled back to its own size and left flush. */
+.abyss-comment-form .form-submit {
+	margin: 0;
+}
+
+.abyss-comment-form .abyss-btn {
+	align-self: flex-start;
+}
+
+/* A checkbox with its label, distinct from .abyss-radio: the native control is
+   visible here and does its own drawing, because there is no styled proxy
+   standing in for it. */
+.abyss-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+.abyss-check input {
+	flex: none;
+	accent-color: var(--abyss-color-accent-700);
+}
+
+/* ---------------------------------------------------------------------------
+   Pagination and post-to-post navigation.
+
+   Core emits these class names from the_posts_pagination(),
+   the_comments_navigation(), and the_post_navigation(). Styled where they land,
+   the same decision as the comment walker and the table block.
+
+   This is the blog's primary navigation once there are more than ten posts, and
+   it was unstyled until now only because three posts never triggered it. A
+   component nobody has seen render is not the same as a component that works.
+   --------------------------------------------------------------------------- */
+
+.navigation {
+	margin-top: var(--abyss-space-8);
+	padding-top: var(--abyss-space-6);
+	border-top: 2px solid var(--abyss-color-divider);
+	font-size: 14px;
+}
+
+.navigation .nav-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--abyss-space-2);
+	align-items: center;
+}
+
+/* Every page number is the same size whether it is a link or the current page,
+   so the row does not shift as the reader pages through. */
+.page-numbers {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 36px;
+	min-height: 36px;
+	padding-inline: var(--abyss-space-2);
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	line-height: 1.2;
+}
+
+/* Parent-scoped, per the theme.json elements.link specificity note above. */
+.navigation a.page-numbers {
+	color: var(--abyss-color-text);
+	text-decoration: none;
+}
+
+.navigation a.page-numbers:hover {
+	color: var(--abyss-color-accent-700);
+	background: rgba(32, 30, 29, 0.07);
+}
+
+/* The current page is marked with the same inset accent rule the nav uses for
+   aria-current, so "where am I" reads identically in both places. Colour alone
+   would fail WCAG 1.4.1; the rule is the non-colour cue. */
+.page-numbers.current {
+	box-shadow: inset 0 -2px 0 var(--abyss-color-accent);
+}
+
+.page-numbers.dots {
+	min-width: 0;
+	color: var(--abyss-color-neutral-700);
+}
+
+/* ---------------------------------------------------------------------------
    Article. Single-post reading view.
    --------------------------------------------------------------------------- */
 
@@ -536,6 +1212,52 @@ img.grayscale {
 	margin-inline: 0;
 	padding-inline-start: var(--abyss-space-4);
 	border-inline-start: 2px solid var(--abyss-color-accent);
+}
+
+/* The affiliate disclosure, prepended to any article carrying an outbound link.
+   It sits above the first paragraph on purpose: both the FTC and the Competition
+   Bureau ask for a disclosure the reader meets before acting on a link, so
+   styling it as a quiet footnote would defeat what it is for. The 2px accent
+   rule is the design's own emphasis device rather than a tinted panel, which
+   Modernist's do-not list would call decoration. */
+.abyss-disclosure {
+	margin-block-end: var(--abyss-space-6);
+	padding-inline-start: var(--abyss-space-4);
+	border-inline-start: 2px solid var(--abyss-color-accent);
+	max-width: var(--abyss-prose-width);
+}
+
+.abyss-disclosure p {
+	margin: 0;
+	font-size: 13px;
+}
+
+/* Pagination inside a page split with <!--nextpage-->. Flush left with the
+   prose, per the design's do-list. */
+.abyss-page-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--abyss-space-2);
+	align-items: center;
+	margin-block-start: var(--abyss-space-6);
+	font-size: 14px;
+}
+
+/* A 2px rule separates the article from its tags, per the design's instruction
+   to divide major sections with the strong rule rather than with whitespace. */
+.abyss-article__footer {
+	margin-top: var(--abyss-space-8);
+	padding-top: var(--abyss-space-6);
+	border-top: 2px solid var(--abyss-color-divider);
+}
+
+.abyss-tag-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--abyss-space-2);
+	list-style: none;
+	margin: 0;
+	padding: 0;
 }
 
 .skip-link {

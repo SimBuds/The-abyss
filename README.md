@@ -31,10 +31,11 @@ docker compose up -d --build
 ssh -p 2222 root@localhost
 ```
 
-**Hosting is decided: the existing DigitalOcean droplet.** It already serves a
-live portfolio site, which makes every mutating step there risky tier and puts a
-read-only inventory first. AWS is a deferred candidate with its completed work
-banked. Both are in [`PLAN.md`](PLAN.md#hosting-the-existing-digitalocean-droplet).
+**Hosting is decided: a dedicated DigitalOcean droplet**, created for this site
+rather than shared with anything else. A read-only inventory comes first, chiefly
+to establish what the chosen image already installed. AWS is a deferred candidate
+with its completed work banked. Both are in
+[`PLAN.md`](PLAN.md#hosting-a-dedicated-digitalocean-droplet).
 
 The theme is built on the Modernist design system, whose token sheet in
 `design/_ds/` is the locked source of truth for every colour, font, and spacing
@@ -46,15 +47,24 @@ holds real credentials.
 
 ## Current state
 
-Build steps 0 to 7a and step 8 are complete. WordPress runs locally at
+Build steps 0 to 8 are complete. WordPress runs locally at
 `http://localhost:8080` on Apache with `php-fpm` and MySQL inside the container,
 the whole stack is codified in `docker/Dockerfile`, and the `the-abyss` theme is
-active. A single post renders through `single.php` with the Modernist tokens
-verified in the page, not just in the files.
+active, with the Modernist tokens verified in the rendered page rather than only
+in the files.
 
-Next is step 7b, the component layer, which opens with the responsive pass that
-no CSS in this theme has had yet. Then step 9, the read-only droplet inventory.
-The full roadmap and its checkboxes are in [`PLAN.md`](PLAN.md#status).
+Step 7b took the theme through the whole component layer and the whole template
+set: the card grid, nav, article, buttons, tags, forms, table and dialog, plus
+`searchform.php`, `page.php`, `404.php` and `comments.php`. The responsive pass
+is done and the theme's overflow floor is a 308px viewport.
+
+**Written is ahead of verified, and the gap is tracked rather than implied.**
+`.abyss-radio`, `.abyss-seg`, `.abyss-table`, the dialog, and the comment thread
+and form have not rendered yet. See the step 7b entries in the build log and the
+verification-gap item in [`PLAN.md`](PLAN.md#status).
+
+Next is step 9, the read-only droplet inventory. The full roadmap and its
+checkboxes are in [`PLAN.md`](PLAN.md#status).
 
 ## Build log
 
@@ -673,3 +683,144 @@ outline, which is what a screen reader navigates by.
 track `the-abyss-card`'s registered 640x420 crop. A 16/9 box over a 3:2 file makes
 `object-fit: cover` crop an already-cropped image a second time, discarding about
 14% more of its height for nothing. Change one and the other has to follow.
+
+#### Step 7b (part 2) — the component layer completed ✅
+
+**Goal:** implement every remaining family in the design readme's component list:
+`.btn`, `.tag`, `.field`, `.input`, `.radio`, `.seg`, `.table`, and `.dialog`.
+
+**Why it matters:** these are the last pieces written against prose rather than
+copied, because the export ships no markup for them. It is also where the design
+system's colour choices met WCAG for the first time at interface sizes, which the
+card and article layers had largely avoided by using ink on ground.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+php -l /var/www/the-abyss/wp-content/themes/the-abyss/single.php
+php -l /var/www/the-abyss/wp-content/themes/the-abyss/searchform.php
+```
+
+**Result:** both clean.
+
+**Five measured divergences, all in the `AGENTS.md` ledger.** Four are one
+number. Nothing legible sits on the accent `#ec3013` at interface sizes: against
+the ground token it is 3.76:1, against ink 3.95:1, against pure white 4.20:1, all
+short of the 4.5:1 WCAG 1.4.3 requires below 18.66px bold. So the primary button
+fill, the ghost button label, the outline tag label, and the checked segmented
+option all use `accent-700`, which measures 6.41:1. This is the readme's own
+instruction rather than a departure from it: it calls the accent suitable for
+icons, large text and interface chrome, and routes paragraph-size accent text to
+`accent-700`.
+
+The fifth is a different rule. Control borders at the divider token composite to
+2.38:1 against the surface behind an input and 2.58:1 against the ground. WCAG
+1.4.11 requires 3:1 for whatever visually identifies a control, and the border is
+the only thing that does: the surface and ground tokens differ by 1.08:1, so the
+fill cannot identify the field. `.abyss-input`, `.abyss-radio__dot`, and
+`.abyss-seg` use `neutral-600` at 3.85:1. The divider token is unchanged
+everywhere else, because the 2px section rules are decorative and identify no
+component. A knock-on: the sheet's hover border is *lighter* than its resting
+border, which would now step backwards, so hover moves down the same ramp
+instead.
+
+A sixth, smaller one: the sheet mutes `.field > label` at 70% and `.table th` at
+60%. At 60% the table header is 4.24:1 at 11px, just short. Both now use 70%, so
+the system carries one muted-label value rather than two differing by an
+invisible amount.
+
+**Q&A:**
+
+*Why is the native radio input moved off-screen instead of hidden?*
+`display: none` and `visibility: hidden` remove an element from the tab order and
+from the accessibility tree, which is exactly what makes a hand-rolled radio
+unusable. `position: absolute; opacity: 0` keeps the real control operable and
+announced, and the visible dot is styled as its proxy. Focus has to be drawn on
+the proxy, because the real input carries no pixels for a ring to sit on.
+
+*Why does the search field id come from `wp_unique_id()`?* The form can render
+more than once on a page. A hard-coded id would duplicate, and every duplicate
+`for` attribute resolves to the *first* matching field, so the second form's
+label would silently belong to the first form's input.
+
+*Why is `.abyss-table` also bound to `.wp-block-table`?* The consumer is an
+author inserting a table into a post, not markup this theme writes. Bound only to
+the bare class it would have been correct and never once used. The block also
+gets `overflow-x: auto`, so a wide table scrolls inside its own figure rather
+than pushing the page sideways, which is what keeps the no-horizontal-scroll
+promise honest without an `overflow-x: hidden` anywhere.
+
+*Why implement a dialog a blog will never open?* To finish the class map, and
+because writing a modal later under pressure is how one ends up with a default
+focus ring and no Escape key. What is there is presentation only, and the comment
+says so: anything that genuinely needs a modal should use the native `<dialog>`
+with `showModal()`, which supplies focus trapping, Escape, and `aria-modal`.
+
+#### Step 7b (part 3) — templates completed: page, 404, comments ✅
+
+**Goal:** finish the template set. `page.php`, `404.php`, and `comments.php`,
+plus the footer structure fix a rendered page exposed.
+
+**Why it matters:** these are the templates a reader hits when something has gone
+wrong or when they want to know who is writing. They are also where the theme
+stops being a demonstration of the design system and starts being a site.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+for f in footer page 404; do php -l /var/www/the-abyss/wp-content/themes/the-abyss/$f.php; done
+php -l /var/www/the-abyss/wp-content/themes/the-abyss/comments.php
+```
+
+**Result:** all clean. The 404 renders its heading, its explanation, the search
+form, and a five-item recent-articles list.
+
+**A structural bug found in a screenshot, not in the code.** The header's 2px
+rule ran the full width of the viewport while the footer's stopped at 1440px.
+`.site-header` is unconstrained and carries its border with `.site-header__inner`
+holding the width cap, but `.site-footer` was doing both jobs on one element.
+Added `.site-footer__inner` so both sides split the same way. Two rules of the
+same weight disagreeing about where the page ends is what the design's "let the
+grid show" is against.
+
+**A bug caught while writing, before it shipped.** The cookie-consent checkbox
+was given `.abyss-radio`. That class hides its native input with
+`position: absolute; opacity: 0`, which is correct for the radio because a styled
+`.abyss-radio__dot` stands in for it. There is no dot on a checkbox, so the
+control would have been invisible and untickable beneath a label that looked
+fine. Split out as `.abyss-check`, where the native control does its own drawing.
+The class name described the intent while the implementation only made sense
+alongside its partner element, which is the failure mode of a component library.
+
+**Still not verified.** `.abyss-radio`, `.abyss-seg`, `.abyss-table`, the dialog,
+and the entire comment thread and form have never rendered. `.abyss-btn` and
+`.abyss-input` have rendered once each, in the search form. The `filemtime()`
+cache-busting change has never been confirmed in page source. Recorded as a debt
+in `PLAN.md` rather than left implied by an unqualified tick.
+
+**Q&A:**
+
+*Why is `page.php` not `single.php` with the dated parts deleted?* Because a page
+is not a dated article. It carries no category kicker, no publication line, no
+byline and no tags, and the difference is load-bearing rather than cosmetic: the
+FTC and affiliate disclosures this project requires will render through this
+template, and a disclosure stamped with an author byline and a review date would
+misrepresent what it is. `page.php` also runs `wp_link_pages()`, which
+`single.php` does not, so a page split with `<!--nextpage-->` does not dead-end
+at part one.
+
+*Why does `404.php` run its own `WP_Query`?* The main query on a 404 has already
+run and found nothing, so the recent-posts list needs its own. It is followed by
+`wp_reset_postdata()`, so `get_footer()` and anything hooked into it are not left
+looking at the last item of that loop.
+
+*Why was the comment website field removed?* It is the most abused field in
+WordPress comments and it exists to collect a link, while this project commits to
+controlling its outbound links. Removing it takes away the incentive rather than
+fighting the symptom with moderation.
+
+*Why style core's comment walker instead of replacing it?* The same reasoning as
+binding `.abyss-table` to the core table block. A custom walker means maintaining
+a copy of WordPress's markup forever, for a part of the page nobody redesigns.

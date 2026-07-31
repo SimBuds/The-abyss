@@ -72,9 +72,66 @@ get_header();
 			?>
 
 			<div class="abyss-article__content">
-				<?php the_content(); ?>
+				<?php
+				the_content();
+
+				/*
+				 * Same reason as page.php. A long comparison split with
+				 * <!--nextpage--> otherwise ends at part one with no way forward
+				 * and nothing saying there is more, and long comparisons are
+				 * exactly what this site publishes.
+				 */
+				wp_link_pages(
+					array(
+						'before' => '<nav class="abyss-page-links" aria-label="' . esc_attr__( 'Article sections', 'the-abyss' ) . '">',
+						'after'  => '</nav>',
+					)
+				);
+				?>
 			</div>
+
+			<?php
+			/*
+			 * Post tags, as the first real consumer of .abyss-tag. Categories are
+			 * already spoken for by the kicker above, so tags are the finer-grained
+			 * axis and belong at the foot of the article rather than the head.
+			 *
+			 * The list is labelled rather than left as a bare row of links, because
+			 * a screen reader reaching it otherwise announces a run of unexplained
+			 * link text with no indication of what the words are.
+			 */
+			$the_abyss_tags = get_the_tags();
+
+			if ( ! empty( $the_abyss_tags ) && ! is_wp_error( $the_abyss_tags ) ) :
+				?>
+				<footer class="abyss-article__footer">
+					<h2 class="screen-reader-text"><?php esc_html_e( 'Tagged', 'the-abyss' ); ?></h2>
+					<ul class="abyss-tag-list">
+						<?php foreach ( $the_abyss_tags as $the_abyss_tag ) : ?>
+							<li>
+								<a class="abyss-tag abyss-tag--neutral" href="<?php echo esc_url( get_tag_link( $the_abyss_tag ) ); ?>">
+									<?php echo esc_html( $the_abyss_tag->name ); ?>
+								</a>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				</footer>
+				<?php
+			endif;
+			?>
 		</article>
+
+		<?php
+		/*
+		 * Guarded, because comments_template() would otherwise load and render
+		 * the form on posts where the discussion was never opened. The condition
+		 * matches WordPress's own: show it when comments are open, or when the
+		 * post already has some and they were closed later.
+		 */
+		if ( comments_open() || get_comments_number() ) {
+			comments_template();
+		}
+		?>
 		<?php
 	endwhile;
 	?>

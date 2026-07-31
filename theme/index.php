@@ -21,11 +21,11 @@ get_header();
 	 * title in the header already serves that role there.
 	 *
 	 * Tested on is_archive() specifically, not on "everything that is not the
-	 * home page". This template is also the fallback for search results and,
-	 * until 404.php exists, for not-found pages. On both of those
+	 * home page". This template is also the fallback for search results, where
 	 * get_the_archive_title() falls through its whole conditional chain and
 	 * returns the literal string "Archives", so a search for "bitcoin" would
-	 * have been titled "Archives".
+	 * have been titled "Archives". Not-found pages used to land here too and
+	 * hit the same bug; 404.php now takes them.
 	 *
 	 * Deliberately OUTSIDE the have_posts() check. A search that matches nothing
 	 * is the case a reader most needs the heading for: it is the only thing that
