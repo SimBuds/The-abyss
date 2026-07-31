@@ -41,6 +41,31 @@ function the_abyss_setup() {
 add_action( 'after_setup_theme', 'the_abyss_setup' );
 
 /**
+ * Cache-busting version for a theme asset, from its modification time.
+ *
+ * The theme version in style.css only changes at a release, so during a build
+ * every edit to main.css shipped as `?ver=0.1.0` and browsers were entitled to
+ * serve the cached copy. That turns "the fix did not work" and "you did not see
+ * the fix" into the same symptom, which cost real debugging time at step 7b.
+ *
+ * filemtime mints a new URL on every save, so an ordinary reload is always
+ * current. In production it settles to one stable value per deploy, which is the
+ * correct caching behaviour there too, so this is not a development-only hack.
+ *
+ * Falls back to the theme version if the file is missing, because filemtime
+ * warns and returns false on a bad path, and a warning printed before headers
+ * would be a worse failure than a stale cache.
+ *
+ * @param string $rel Path relative to the theme root, with no leading slash.
+ * @return string
+ */
+function the_abyss_asset_version( $rel ) {
+	$path = THE_ABYSS_DIR . '/' . $rel;
+
+	return file_exists( $path ) ? (string) filemtime( $path ) : THE_ABYSS_VERSION;
+}
+
+/**
  * Enqueue front-end assets.
  *
  * fonts.css is a dependency of main.css rather than a separate concern, so the
@@ -51,14 +76,14 @@ function the_abyss_assets() {
 		'the-abyss-fonts',
 		THE_ABYSS_URI . '/assets/css/fonts.css',
 		array(),
-		THE_ABYSS_VERSION
+		the_abyss_asset_version( 'assets/css/fonts.css' )
 	);
 
 	wp_enqueue_style(
 		'the-abyss-main',
 		THE_ABYSS_URI . '/assets/css/main.css',
 		array( 'the-abyss-fonts' ),
-		THE_ABYSS_VERSION
+		the_abyss_asset_version( 'assets/css/main.css' )
 	);
 }
 add_action( 'wp_enqueue_scripts', 'the_abyss_assets' );

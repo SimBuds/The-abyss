@@ -348,13 +348,20 @@ img.grayscale {
 /* ---------------------------------------------------------------------------
    Cards and the post grid. The readme's .card family.
 
-   Values copied from the token sheet's component layer: padding --space-3, gap
-   --space-2, surface background, radius 0, title 17px heading weight, body 13px
-   at 0.8 opacity, meta 11px, kicker 10px uppercase tracked in the accent.
+   .abyss-card and its kicker, title, body, meta and elev classes are the token
+   sheet's .card family: padding --space-3, gap --space-2, surface background,
+   radius 0, title 17px heading weight, body 13px at 0.8 opacity, meta 11px,
+   kicker 10px uppercase tracked in the accent. Values are exact. Four
+   properties are added that the source does not carry: margin: 0 on the kicker
+   and title, and letter-spacing plus overflow-wrap on the title.
 
-   The grid is Modernist's "equal-width cells". auto-fit with minmax means the
-   column count falls from three to two to one as the viewport narrows, with no
-   breakpoints to maintain, and no cell can be squeezed below 260px.
+   .abyss-grid and .abyss-card__media have NO counterpart in the token sheet.
+   They come from the readme's prose rather than its CSS, so they are project
+   decisions and a documented gap, not tokens. The grid is the readme's
+   "equal-width cells": auto-fit with minmax drops the column count from three
+   to two to one as the viewport narrows, with no breakpoints to maintain, and
+   no cell squeezed below 260px. With .site-main's 48px of padding that puts the
+   overflow floor at a 308px viewport.
    --------------------------------------------------------------------------- */
 
 .abyss-grid {
@@ -364,6 +371,17 @@ img.grayscale {
 	margin: 0;
 	padding: 0;
 	list-style: none;
+}
+
+/* The `li` is the grid item, not the card, so `align-items: stretch` stretches
+   the `li` and stops there. The card inside stays at its own content height,
+   which leaves ragged card bottoms across a row and makes `.abyss-card__body`'s
+   `flex: 1` do nothing. Making the `li` a flex container passes the stretch
+   through to the card, so a row's surfaces end flush and the dates line up.
+   Modernist's equal-width cells only read as a grid if the cells also end
+   level. */
+.abyss-grid > li {
+	display: flex;
 }
 
 .abyss-card {
@@ -425,9 +443,14 @@ img.grayscale {
 	color: rgba(32, 30, 29, 0.5);
 }
 
+/* 3:2 to match `the-abyss-card`'s registered 640x420 crop. The two have to
+   agree: a 16/9 box over a 3:2 file makes `object-fit: cover` re-crop an
+   already-cropped image, throwing away roughly another 14% of its height for
+   nothing. Change one and the other has to follow. The hero below is 16/9
+   because `the-abyss-hero` is 1920x1080. */
 .abyss-card__media {
 	margin: 0 0 var(--abyss-space-2);
-	aspect-ratio: 16 / 9;
+	aspect-ratio: 3 / 2;
 	background: var(--abyss-color-neutral-200);
 }
 

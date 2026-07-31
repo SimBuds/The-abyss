@@ -166,12 +166,19 @@ same values as `--abyss-*` custom properties. The approved divergences are
 recorded in `AGENTS.md` under *Design system divergences*, which is where the
 fidelity gate requires them.
 
-Still outstanding for step 7: the component layer. The readme's class list
-(`.btn`, `.tag`, `.card`, `.nav`, `.table`, `.dialog`, `.field`, `.input`,
+Still outstanding for step 7: the rest of the component layer. The readme's class
+list (`.btn`, `.tag`, `.card`, `.nav`, `.table`, `.dialog`, `.field`, `.input`,
 `.radio`, `.seg`) has no markup in the export, so each is written against the
-written spec rather than copied. `main.css` currently implements only the
-foundations: base type, links, focus, selection, the `.grayscale` wrapper, and
-the 2px rule.
+written spec rather than copied. `main.css` implements the foundations (base
+type, links, focus, selection, the `.grayscale` wrapper, the 2px rule), the nav,
+the article, and as of 2026-07-31 the `.card` family and post grid. Remaining:
+`.btn`, `.tag`, `.field`, `.input`, `.radio`, `.seg`, `.table`, `.dialog`.
+
+Two card-layer selectors have no counterpart in the token sheet and are recorded
+in the `AGENTS.md` ledger as a documented gap rather than as tokens: `.abyss-grid`
+and `.abyss-card__media`. Both come from the readme's prose, which asks for
+"equal-width cells" and for photographs to be wrapped in `.grayscale`, but whose
+CSS defines neither a grid nor a media box.
 
 The theme is deployed into the container by symlink,
 `/var/www/the-abyss/wp-content/themes/the-abyss -> /workspace/theme`, so repo
@@ -357,13 +364,21 @@ Phase B, the theme:
       rendered page.**
 - [x] **Step 7a, header, nav, and `single.php` built and proven against a real
       post.** Component families remain: see step 7b.
-- [ ] Step 7b, the component layer. `.abyss-card` and archive, then
-      `.abyss-btn` and `.abyss-tag`, then forms, table, and dialog. Also
-      `page.php`, `404.php`, `search.php`, and comments markup.
-- [ ] **Outstanding verification, carried into step 7b:** no CSS in this theme
-      has had a responsive pass at intermediate widths. The accessibility
-      baseline requires a wide and a narrow check with dragging between, and
-      only a single wide viewport has been observed.
+- [ ] Step 7b, the component layer. Done 2026-07-31: `.abyss-card` and the card
+      grid, plus `index.php` handling of the archive, search-results, and
+      no-results paths, verified against three published posts of differing
+      excerpt length and both search outcomes. Remaining: `.abyss-btn` and
+      `.abyss-tag`, then forms, table, and dialog. Also `page.php`, `404.php`,
+      a dedicated `search.php`, and comments markup. `index.php` already covers
+      search acceptably, so `search.php` is a refinement rather than a gap.
+- [x] **Responsive pass done 2026-07-31.** Dragged 1600px to 380px with no
+      horizontal scrollbar at any width, headings visibly smaller at the narrow
+      end, and browser zoom confirming the `1rem +` term in each clamp responds
+      to user font-size settings, which is the WCAG 1.4.4 requirement. The
+      computed overflow floor is a **308px viewport**: the grid's
+      `minmax(260px, 1fr)` plus `.site-main`'s 48px of inline padding. Below
+      that a scrollbar is expected. Narrowest common device viewport is 320px,
+      so there is 12px of margin.
 
 Phase C, hosting:
 

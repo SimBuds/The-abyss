@@ -587,3 +587,89 @@ truth?* Modernist specifies a modular grid but no content width, so this is a
 documented gap rather than a token. 960px at 15px runs to roughly 120 characters
 per line, so paragraph text inside article content is separately capped at 70ch.
 The grid keeps its width, the prose does not.
+
+#### Step 7b (part 1) — the card family and the post grid ✅
+
+**Goal:** turn the blog home and archives from a bare list into Modernist's
+"equal-width cells", and add the first component family from the design readme.
+
+**Why it matters:** the card is the site's main unit of navigation. It is also
+the first component written against prose rather than copied from CSS: the token
+sheet defines `.card` and its children, but defines no grid and no media box, so
+those two are project decisions and had to be recorded as a documented gap rather
+than passed off as tokens.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+php -l /var/www/the-abyss/wp-content/themes/the-abyss/index.php
+```
+
+**Result:** `No syntax errors detected`. The listing renders as cards with the
+grayscale thumbnail, accent kicker, 17px title, excerpt at 0.8 opacity, and date;
+square corners and surface fill throughout.
+
+**Responsive pass, outstanding since step 6, now done.** Dragged 1600px down to
+380px: no horizontal scrollbar at any width, cards reflowing three to two to one
+with no breakpoints in the stylesheet, and headings visibly smaller at the narrow
+end. Browser zoom grew the type, which is what the `1rem +` term in each clamp
+exists for and what WCAG 1.4.4 requires. The computed floor is a 308px viewport
+(`minmax(260px, 1fr)` plus 48px of inline padding); below that a scrollbar is
+correct behaviour, and the narrowest common device is 320px.
+
+**Two defects found by reading the code after the browser check passed, both
+fixed:**
+
+1. Cards had ragged bottoms. The `<li>` is the grid item, so `align-items:
+   stretch` stretched the `li` and stopped there, leaving the card at its own
+   content height and making `.abyss-card__body { flex: 1 }` a no-op. Invisible
+   with one post, wrong with three. Fixed with `.abyss-grid > li { display:
+   flex }`.
+2. A search for "bitcoin" would have been titled "Archives". The archive heading
+   was guarded on `! is_front_page() && ! is_home()`, but this template is also
+   the fallback for search and, until `404.php` exists, for not-found pages. On
+   both, `get_the_archive_title()` falls through its entire conditional chain to
+   the literal string `Archives`. Now branches on `is_archive()` and
+   `is_search()` explicitly.
+
+Both were then proven against three published posts of differing excerpt length,
+two of them without a featured image: the card bottoms end level, the three dates
+sit on one line, and the image-less cards start at the kicker with no placeholder
+box. The thumbnail measured 711x473 in the rendered page, which is 1.503, so the
+3:2 box is applied and the double crop is gone.
+
+A third defect, found because it was distorting the verification itself:
+`wp_enqueue_style` was versioning both stylesheets with `THE_ABYSS_VERSION`,
+which reads `Version:` from `style.css` and therefore never changes during a
+build. Every CSS edit shipped as `?ver=0.1.0`, so a browser could serve a cached
+copy and "the fix did not work" was indistinguishable from "you did not see the
+fix". Now versioned by `filemtime()` through `the_abyss_asset_version()`, which
+mints a new URL on every save and settles to one stable value per deploy in
+production.
+
+Both search paths then verified in the browser: `?s=spacex` returns the matching
+card under a *Search results for: spacex* heading, and `?s=zzzzqqq` keeps its
+heading and reports that no posts matched, which is the path that rendered a bare
+sentence with no `h1` at all before this step.
+
+**Still not verified.** The `filemtime()` cache-busting change has not been
+confirmed in page source. The search fixes are no evidence either way, because
+`index.php` is PHP and was never the thing being cached.
+
+**Q&A:**
+
+*Why does the grid have no media queries?* `repeat(auto-fit, minmax(260px, 1fr))`
+lets the column count fall out of the available width, so the breakpoints are
+implicit in the 260px minimum. There is nothing to keep in sync when the content
+width changes later.
+
+*Why is the card title 17px when it is an `<h2>`?* The token sheet pins
+`.card-title` to 17px regardless of heading level. Keeping the size on the class
+rather than the element leaves the semantic level free to match the document
+outline, which is what a screen reader navigates by.
+
+*Why is the card thumbnail `aspect-ratio: 3 / 2` rather than 16/9?* It has to
+track `the-abyss-card`'s registered 640x420 crop. A 16/9 box over a 3:2 file makes
+`object-fit: cover` crop an already-cropped image a second time, discarding about
+14% more of its height for nothing. Change one and the other has to follow.

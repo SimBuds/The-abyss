@@ -1143,6 +1143,23 @@ presented as a ledger and approved on 2026-07-29. Do not re-litigate or silently
   maximum as the exact token value rather than a value WordPress derives.
 - **Radius lives in CSS, not `theme.json`.** `--radius-sm/md/lg` are all `0px`
   deliberately and WordPress has no global radius setting.
+- **`.abyss-grid` and `.abyss-card__media` have no source in the token sheet.**
+  Added 2026-07-31. Modernist's readme calls for "equal-width cells" and for
+  photographs to be wrapped in `.grayscale`, but its CSS defines neither a grid
+  nor a card media box, so both are project decisions and a documented gap
+  rather than tokens. The grid is `repeat(auto-fit, minmax(260px, 1fr))`, which
+  gives the readme's cells with no breakpoints to maintain and puts the layout's
+  overflow floor at a 308px viewport. The media box is `aspect-ratio: 3 / 2`,
+  which tracks `the-abyss-card`'s registered 640x420 crop in `functions.php`;
+  a mismatch makes `object-fit: cover` crop an already-cropped file twice. 420
+  is 1.524 rather than an exact 1.5, so `cover` still trims about 1.6% of the
+  height. Change one and the other has to follow. The hero box is 16/9 to match `the-abyss-hero` at 1920x1080.
+- **The `.card` family gains four properties the token sheet does not carry.**
+  `margin: 0` on `.abyss-card__kicker` and `.abyss-card__title`, because the
+  source sheet assumes a reset this theme does not inherit, and
+  `letter-spacing: -0.015em` plus `overflow-wrap: break-word` on the title, to
+  match the global heading treatment and to stop a long ticker string pushing a
+  260px cell sideways. Every copied *value* is exact.
 - **`spacingSizes` has six entries.** The token sheet defines 1, 2, 3, 4, 6, and
   8. There is no 5 or 7 and none is invented.
 - **`--abyss-content-width: 1240px` is not from the token sheet.** Modernist
