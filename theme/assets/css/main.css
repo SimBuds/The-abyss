@@ -201,6 +201,11 @@ img {
    copy. Links sit in running text, so they take the deep ramp step the readme
    directs paragraph-size accent text to. Accessibility overriding the literal
    accent, logged as an intentional divergence in PLAN.md. */
+/* These two are a fallback, not the active rule. At (0,0,1) they always lose to
+   theme.json's elements.link, which WordPress emits at (0,1,0). They set the
+   identical value, so nothing renders differently, and they keep link colour
+   correct if the global styles are ever dequeued. Kept deliberately rather than
+   left looking load-bearing. */
 a {
 	color: var(--abyss-color-accent-700);
 	text-decoration: underline;
@@ -341,26 +346,20 @@ img.grayscale {
 }
 
 /* ---------------------------------------------------------------------------
-   Cards. The readme's .card family.
+   Cards and the post grid. The readme's .card family.
 
-   Values copied from the token sheet's component layer: column flex with a
-   space-2 gap, space-3 padding, radius-md (zero), surface fill. The sub-parts
-   keep their exact sizes, 10px kicker, 17px title, 13px body, 11px meta.
+   Values copied from the token sheet's component layer: padding --space-3, gap
+   --space-2, surface background, radius 0, title 17px heading weight, body 13px
+   at 0.8 opacity, meta 11px, kicker 10px uppercase tracked in the accent.
 
-   .card-meta's colour is color-mix(in srgb, var(--color-text) 50%, transparent)
-   in the source, written here as rgba for the same reason the divider token is.
-
-   Not in the export: the card has no media slot, so these are text cards. A
-   listing with thumbnails would be an addition to the design system rather than
-   an implementation of it, and needs a decision before it is invented.
+   The grid is Modernist's "equal-width cells". auto-fit with minmax means the
+   column count falls from three to two to one as the viewport narrows, with no
+   breakpoints to maintain, and no cell can be squeezed below 260px.
    --------------------------------------------------------------------------- */
 
-/* Equal-width cells, per the design's modular grid. auto-fill with a minimum
-   means the column count falls with the viewport and no breakpoint is needed,
-   which matches the clamp-based approach taken for type. */
-.abyss-cards {
+.abyss-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 	gap: var(--abyss-space-6);
 	margin: 0;
 	padding: 0;
@@ -384,16 +383,20 @@ img.grayscale {
 	margin: 0;
 }
 
+/* Not a heading element's size. The token sheet pins .card-title to 17px
+   regardless of which heading level the markup uses, so the semantic level
+   stays free to match the document outline. */
 .abyss-card__title {
 	font-family: var(--abyss-font-heading);
 	font-weight: var(--abyss-font-heading-weight);
 	font-size: 17px;
 	line-height: 1.2;
+	letter-spacing: -0.015em;
 	margin: 0;
+	overflow-wrap: break-word;
 }
 
-/* Parent-scoped, same specificity reason as the nav brand. The card title reads
-   as a heading rather than as a link, so it takes the ink colour. */
+/* Parent-scoped, per the theme.json elements.link specificity note above. */
 .abyss-card .abyss-card__title a {
 	color: var(--abyss-color-text);
 	text-decoration: none;
@@ -405,8 +408,6 @@ img.grayscale {
 	text-underline-offset: 2px;
 }
 
-/* flex: 1 pushes the meta line to the bottom, so meta lines align across a row
-   of cards whatever length the excerpts are. */
 .abyss-card__body {
 	margin: 0;
 	font-size: 13px;
@@ -414,13 +415,26 @@ img.grayscale {
 	flex: 1;
 }
 
+/* The token uses color-mix at 50% of the text colour. Written as rgba for the
+   same reason the divider token is, and it is the same computed colour. */
 .abyss-card__meta {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	font-size: 11px;
 	color: rgba(32, 30, 29, 0.5);
-	margin: 0;
+}
+
+.abyss-card__media {
+	margin: 0 0 var(--abyss-space-2);
+	aspect-ratio: 16 / 9;
+	background: var(--abyss-color-neutral-200);
+}
+
+.abyss-card__media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 
 .abyss-elev--sm { box-shadow: var(--abyss-shadow-sm); }
