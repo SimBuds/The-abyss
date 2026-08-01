@@ -152,83 +152,107 @@ affects Apache, PHP, MySQL, or WordPress.
 
 ## Design system
 
-The Modernist design system is present at
-`design/_ds/modernist-747f06d4-a5fd-4b38-bebe-4878e82695b0/`.
+**Replaced 2026-08-01.** The Modernist system, and the `design/` directory that
+held it, were removed. `abyss-theme` ships its own design and its own tokens, and
+is now the source of truth for both.
 
-Modernist is flat and architectural, set entirely in Archivo, a near-mono red on
-a light ground, with a visible modular grid, zero corner radius, and strong 2px
-rules. Photography prints in black and white. Everything is flush left, including
-labels inside buttons.
+The history matters, because everything written before this date assumed
+otherwise. Modernist was flat and architectural: Archivo throughout, near-mono
+red on a light ground, zero corner radius, strong 2px rules, black-and-white
+photography, everything flush left. `abyss-theme` is none of those things. It is
+dark-ground, teal-accented, set in Plus Jakarta Sans and Source Sans 3, and uses
+a 16px radius. The two are not variants of each other, so a rule carried over
+from the old system is almost certainly wrong rather than merely dated.
 
-**What is present and usable:**
+Consequences, recorded rather than discovered later:
 
-- `styles.css`, 252 lines. The token sheet and component layer. Colour roles with
-  100 to 900 OKLCH ramps, `--font-heading` and `--font-body` both Archivo, a
-  4px-based `--space-*` scale, and `--radius-md` deliberately 0.
-- `readme.md`, the written spec, including the component class list, the
-  interaction-state rules, and the do and do-not list.
-- `_ds_manifest.json` and `_adherence.oxlintrc.json`.
+- **The Modernist `design/` contents are gone and stay gone**, decided
+  2026-08-01. The token sheet is recoverable from Git history at commit
+  `73a4e40` if it is ever wanted, and nothing in the current build reads it.
+  `design/` was then reused the same day for reference screenshots of the
+  intended homepage. It is now a visual target, not a token source: nothing
+  reads it, and it is not the source of truth for any value.
+- **The `AGENTS.md` divergence ledger no longer exists.** Its seven approved
+  divergences were all measured against Modernist tokens, so it retired with the
+  system. Any new divergence is measured against `abyss-theme`'s own tokens.
+- **The accessibility findings did not retire with it.** They were measurements,
+  not preferences, and they apply to any palette. Done 2026-08-01, see below.
+- **The palette was normalised to one scheme**, deep navy + amber, on
+  2026-08-01. `abyss-theme` shipped with four selectable schemes and defaulted to
+  a mint one that did not match the reference screenshots. The other three were
+  removed rather than left unused, and the Customizer picker went with them,
+  because a selectable palette and a contrast guarantee cannot both hold: every
+  measurement would be valid only for whichever scheme happened to be active.
+  The single scheme is defined in one place, `abyss_palettes()`, with
+  `style.css`, `theme.json`, and `editor.css` carrying the same values as
+  fallbacks instead of a different theme's.
 
-**What the readme documents but the export does not contain:**
+### Contrast, measured 2026-08-01
 
-- `theme.json`, described as the parameters the system was derived from.
-- `foundations/*.html` and `components/*.html`, the reference pages the readme
-  says to copy markup from.
-- `templates/landing/` and `assets/photo.jpg`.
+All against `--color-bg` `#151a2a`. This is the check the Modernist ledger used
+to hold, redone for the new palette:
 
-The token layer is complete, so the theme can be built. The WordPress `theme.json`
-is derived from `styles.css` rather than read from the missing file, and the
-missing component pages mean markup is written against the readme's class list
-rather than copied. Record any divergence this forces as an intentional one.
+| Pair | Ratio | Needs | |
+|---|---|---|---|
+| body text | 15.31:1 | 4.5 | pass |
+| neutral-800 | 11.01:1 | 4.5 | pass |
+| accent text | 9.44:1 | 4.5 | pass |
+| on-accent on the accent fill | 9.35:1 | 4.5 | pass |
+| neutral-700 | 6.79:1 | 4.5 | pass |
+| negative | 5.98:1 | 4.5 | pass |
 
-Done at step 6: `theme.json` carries 24 palette entries, 7 font sizes, 6 spacing
-sizes, and 3 shadow presets, all traced to the token sheet, plus a `styles` block
-mapping the heading scale to elements. `theme/assets/css/main.css` carries the
-same values as `--abyss-*` custom properties. The approved divergences are
-recorded in `AGENTS.md` under *Design system divergences*, which is where the
-fidelity gate requires them.
+Navy and amber is a decisively better starting point than what it replaced:
+Modernist needed five separate divergences because its accent measured 3.76:1,
+and amber on navy is 9.44:1 without any adjustment.
 
-The component layer is complete as of 2026-07-31. The readme's class list
-(`.btn`, `.tag`, `.card`, `.nav`, `.table`, `.dialog`, `.field`, `.input`,
-`.radio`, `.seg`) has no markup in the export, so each was written against the
-written spec rather than copied. `main.css` now carries all of them plus the
-foundations (base type, links, focus, selection, the `.grayscale` wrapper, the
-2px rule), the nav, and the article. The one omission is `.tag-accent-2`, which
-the ledger explains.
+One fix was required. `--color-neutral-400` was `#48526e` at **2.23:1**, and it
+is the border on `.btn--secondary` and on form inputs, which makes it a UI
+component boundary where WCAG 1.4.11 requires 3:1. Raised to `#67739a`: 3.71:1
+on the background, 3.33:1 on card, 3.00:1 on surface, since inputs appear on all
+three.
 
-Not every component has a consumer yet, and that is tracked rather than assumed:
-`.abyss-card` is used by `index.php`, `.abyss-tag` by `single.php`,
-`.abyss-input` and `.abyss-btn` by `searchform.php`, and `.abyss-table` by the
-core table block in post content. `.abyss-radio`, `.abyss-seg`, and the dialog
-family have none. Radio and seg are waiting on comment forms and filtering. The
-dialog has no natural consumer in a reading site at all and is implemented for
-completeness of the class map; anything that does need a modal should use the
-native `<dialog>` element with `showModal()`, because these classes are
-presentation only and provide no focus trap, Escape handling, or `aria-modal`.
+`--color-divider` stays at 1.49:1 deliberately. It draws decorative rules between
+sections and identifies no control, which is the 1.4.11 exemption. Raising it to
+match would make every section rule shout.
 
-**Accessibility drove five divergences from the token sheet**, all measured and
-all in the `AGENTS.md` ledger. Four are the same number: accent-coloured text and
-accent fills behind text measure 3.76:1, and nothing legible sits on the accent
-at interface sizes, so `.abyss-btn--primary`, `.abyss-btn--ghost`,
-`.abyss-tag--outline`, and the checked `.abyss-seg__opt` all move to
-`accent-700`. The fifth is WCAG 1.4.11: control borders at the divider token
-measure 2.38:1 against the surface, so `.abyss-input`, `.abyss-radio__dot`, and
-`.abyss-seg` use `neutral-600`. The divider token itself is unchanged, because
-decorative rules identify no component.
+### Carried forward into `abyss-theme/inc/compliance.php`
 
-Two card-layer selectors have no counterpart in the token sheet and are recorded
-in the `AGENTS.md` ledger as a documented gap rather than as tokens: `.abyss-grid`
-and `.abyss-card__media`. Both come from the readme's prose, which asks for
-"equal-width cells" and for photographs to be wrapped in `.grayscale`, but whose
-CSS defines neither a grid nor a media box.
+Six things existed in the old theme and not in the new one. They were ported on
+2026-08-01 and verified rendering. They are kept in one file, separable from the
+rest of the theme, because they are the part a future theme change must not
+silently drop:
 
-The theme is deployed into the container by symlink,
-`/var/www/the-abyss/wp-content/themes/the-abyss -> /workspace/theme`, so repo
-edits are live without a copy step. The vhost already allows `+FollowSymLinks`.
+1. `rel="sponsored nofollow"` on affiliate links written into article prose.
+   `abyss-theme` already handles links built by `abyss_affiliate_link()`, which
+   covers offers and picks but not a link typed into a paragraph.
+2. A per-article disclosure above the first paragraph. `abyss-theme`'s site-wide
+   footer bar is kept and is not a substitute: it sits below every link on the
+   page, and both the FTC and the Competition Bureau ask for a notice the reader
+   meets before acting on a link.
+3. `Article` JSON-LD.
+4. The `comment-reply` script, without which threaded replies are filed as new
+   top-level comments.
+5. `filemtime` asset versioning.
 
-Locked values, per the regression-locks rule: the token values in `styles.css`
-are the source of truth for colour, type, and spacing. Do not hand-pick a hex, a
-font stack, or a pixel value that a token already carries.
+Both 1 and 2 key off one filterable list of monetised domains rather than off
+"any outbound link", which is a distinction that was learned the expensive way:
+the first version tagged editorial citations as paid placements and printed a
+disclosure on articles that earned nothing.
+
+The sixth, fluid type, was **not** ported. The old theme used `clamp()` with a
+`rem` term so headings respond to a reader's browser font-size setting;
+`abyss-theme` uses fixed `px` with breakpoints. Converting its 40-plus font-size
+declarations is a decision about its type scale rather than a gap to patch, so it
+is left open and recorded here.
+
+### Open design questions
+
+- **Fonts load from the Google Fonts CDN.** With Complianz installed for consent,
+  that is a live compliance issue rather than a preference: German courts have
+  held that the endpoint transfers a visitor's IP address without consent.
+  Self-hosting is the fix.
+- **Fixed-`px` type**, as above.
+
 
 ## Repository state
 
@@ -437,6 +461,69 @@ themselves, and the inventory shrinks to establishing the starting point:
 
 Recording the answers is Step 9's deliverable. Nothing is changed while taking
 them.
+
+## Delivery sequence
+
+Set by Casey 2026-08-01 and revised the same day after an audit of what actually
+transfers to the server. It supersedes the numbered step roadmap below for
+ordering; the steps below remain the record of what was done.
+
+### The decision that shapes the order: the local database is disposable
+
+Decided 2026-08-01. Only `abyss-theme/`, `docker/`, `scripts/`, and the docs are
+in Git. Everything else the local site knows lives in the MySQL volume and
+transfers via nothing: 7 posts and pages, 9 offers, 4 picks, 6 attachments, the
+menus, the custom logo, the permalink structure, and every plugin option.
+`scripts/provision.sh` builds a *fresh* WordPress — it installs plugins, and
+configures none of them.
+
+So local plugin configuration would be work done twice, and the second time is
+the one that counts. Four of the nine cannot be configured meaningfully here in
+any case: Site Kit needs OAuth against a live host, FluentSMTP needs SES with a
+verified domain, Complianz's consent configuration depends on what analytics
+actually loads, and Rank Math bakes absolute URLs into sitemaps and canonicals.
+
+The local content is entirely fixtures — there is not one real article — which
+makes this the cheapest possible moment to decide the database is throwaway.
+Consequences, accepted deliberately:
+
+- **Local is a development environment**, for theme code and for testing the
+  provisioning scripts. It is not a staging copy of production.
+- **Plugin configuration and real content happen once, on the server.**
+- **No database migration path is needed to proceed.** One is still needed
+  eventually, for backups and restores, but it no longer gates this work.
+- **Local fixtures may be deleted at any time.** Nothing depends on them beyond
+  exercising templates.
+
+### Order
+
+1. **Integrate and test the new theme.** Done. `abyss-theme` installed and
+   activated, every page type 200, and the six things it was missing ported into
+   `inc/compliance.php` and verified rendering.
+2. **Clean up: old theme out, new theme in.** Done. `theme/` removed, the
+   Modernist documentation retired, the palette normalised to one scheme, and the
+   header, footer, menus, and homepage sections built against the reference
+   screenshots.
+3. **Test `scripts/provision.sh` in a throwaway container.** Next, and moved
+   ahead of everything server-side deliberately. The script has never executed,
+   not once, anywhere. It is the largest untested risk between here and a working
+   server, and a container tests it for free. Doing this on EC2 first would mean
+   debugging the script at the same time as security groups, Elastic IPs, and
+   IMDS, with a relaunch as the cost of each mistake.
+
+   Guarded for this on 2026-08-01: `has_systemd()` now gates the `systemctl`,
+   `ufw`, and swap steps, and a `skipped()` helper reports each one loudly. The
+   guards skip and never fake, so a container run cannot be mistaken for a full
+   one. What the container **cannot** cover, and what therefore stays untested
+   until EC2: service management under systemd, the firewall, swap, and certbot.
+4. **Launch the EC2 instance, inventory it, then run `provision.sh` for real.**
+5. **Configure the plugins once, on the real domain**, each one explained as it
+   is set up.
+6. **Write real content.**
+7. **Connect the domain and TLS, then fix indexing.** Two opposite requirements
+   that get confused with each other: production must be indexable, and staging
+   must never be. `blog_public` is the switch and it is per-environment. It is
+   currently `0` locally, which is correct.
 
 ## Status
 

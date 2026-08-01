@@ -31,6 +31,8 @@
 
 set -euo pipefail
 
+SKIPS=0
+
 # --- configuration ----------------------------------------------------------
 
 SITE_DOMAIN="${SITE_DOMAIN:-}"
@@ -47,7 +49,30 @@ DB_USER="${DB_USER:-theabyss}"
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 log()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+
+# Is this a real host with an init system, or a container?
+#
+# The script has to run in both. A plain container has no systemd, no ufw that
+# can load kernel modules, and no swap it is allowed to create, and PLAN.md
+# already records that as the container's known limitation. Guarding these three
+# is what lets the whole WordPress-shaped part of this script be tested in a
+# throwaway container before it is ever pointed at an EC2 instance that costs
+# money and takes a relaunch to fix.
+#
+# The guards skip; they never fake. A skipped step says so, loudly, so a
+# container run is never mistaken for a full one.
+has_systemd() { [ -d /run/systemd/system ]; }
+
+# Start or restart a service through whichever mechanism exists.
+svc() {
+	if has_systemd; then
+		systemctl "$1" "$2"
+	else
+		service "$2" "$1" >/dev/null 2>&1 || true
+	fi
+}
 warn() { printf '\033[33mwarning: %s\033[0m\n' "$*" >&2; }
+skipped() { printf '\033[33m   SKIPPED — %s\033[0m\n' "$*"; SKIPS=$((SKIPS+1)); }
 die()  { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "must run as root. On EC2: sudo bash scripts/provision.sh"
@@ -119,7 +144,8 @@ a2ensite the-abyss >/dev/null
 # first wins and the Apache welcome page shows instead of the site.
 a2dissite 000-default >/dev/null 2>&1 || true
 apache2ctl configtest
-systemctl reload apache2
+svc reload apache2
+svc start apache2
 
 # --- wp-cli -----------------------------------------------------------------
 #
@@ -205,6 +231,29 @@ fi
 wp_run rewrite structure '/%category%/%postname%/' >/dev/null
 wp_run rewrite flush --hard >/dev/null
 
+# `wp rewrite flush --hard` writes the BEGIN/END WordPress markers but leaves
+# them empty when it cannot detect Apache, which it cannot from the CLI. The
+# result is a site where every URL except the home page 404s, with an .htaccess
+# that looks correct at a glance because the markers are there. Observed locally
+# 2026-08-01. Written explicitly rather than trusted.
+if ! grep -q 'RewriteEngine On' "$WP_DIR/.htaccess" 2>/dev/null; then
+	cat > "$WP_DIR/.htaccess" <<'HTACCESS'
+
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+# END WordPress
+HTACCESS
+	chown www-data:www-data "$WP_DIR/.htaccess"
+fi
+
 # --- theme ------------------------------------------------------------------
 #
 # Deployed by symlink from the checkout, matching the container, so a git pull is
@@ -212,10 +261,13 @@ wp_run rewrite flush --hard >/dev/null
 
 log "Theme"
 THEMES_DIR="$WP_DIR/wp-content/themes"
-if [ ! -e "$THEMES_DIR/the-abyss" ]; then
-	ln -s "$REPO_DIR/theme" "$THEMES_DIR/the-abyss"
+# Renamed 2026-08-01: the theme directory is abyss-theme, and the old `theme/`
+# was deleted in the same change. Left as `the-abyss` this silently created a
+# dangling symlink and then failed to activate a theme that no longer exists.
+if [ ! -e "$THEMES_DIR/abyss-theme" ]; then
+	ln -s "$REPO_DIR/abyss-theme" "$THEMES_DIR/abyss-theme"
 fi
-wp_run theme activate the-abyss
+wp_run theme activate abyss-theme
 
 # --- plugins ----------------------------------------------------------------
 #
@@ -247,7 +299,9 @@ log "Swap"
 # processing sharing 2 GiB of RAM is exactly where a WordPress host OOMs, and
 # the OOM killer usually takes MySQL, which looks like data corruption rather
 # than memory pressure.
-if [ "$(swapon --show --noheadings | wc -l)" -eq 0 ] && [ ! -f /swapfile ]; then
+if ! has_systemd; then
+	skipped "swap: containers cannot swapon; this runs on the real host only"
+elif [ "$(swapon --show --noheadings | wc -l)" -eq 0 ] && [ ! -f /swapfile ]; then
 	fallocate -l 2G /swapfile
 	chmod 600 /swapfile
 	mkswap /swapfile >/dev/null
@@ -270,10 +324,14 @@ log "Firewall and fail2ban"
 # OpenSSH is allowed before enabling, which is the difference between a firewall
 # and a lockout. On EC2 a lockout is recoverable only through SSM or a stop,
 # detach, fix, reattach cycle, so the ordering here is load-bearing.
-ufw allow OpenSSH >/dev/null
-ufw allow 'Apache Full' >/dev/null
-ufw --force enable >/dev/null
-systemctl enable --now fail2ban >/dev/null
+if has_systemd; then
+	ufw allow OpenSSH >/dev/null
+	ufw allow 'Apache Full' >/dev/null
+	ufw --force enable >/dev/null
+	systemctl enable --now fail2ban >/dev/null
+else
+	skipped "firewall and fail2ban: no init system; this runs on the real host only"
+fi
 
 # --- TLS --------------------------------------------------------------------
 #
