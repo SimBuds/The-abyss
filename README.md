@@ -42,9 +42,13 @@ Two scripts carry the transfer: `scripts/provision.sh` turns a fresh Ubuntu host
 into this stack, and `scripts/inventory.sh` is a strictly read-only survey to run
 before it.
 
-The theme is built on the Modernist design system, whose token sheet in
-`design/_ds/` is the locked source of truth for every colour, font, and spacing
-value. Approved divergences from it are recorded in [`AGENTS.md`](AGENTS.md).
+The theme is `abyss-theme`: deep navy and amber, Plus Jakarta Sans and Source
+Sans 3, with a homepage built around two editorial lanes, a live ticker, a
+sortable rate comparison table, tested picks, and newsletter capture. It replaced
+an earlier Modernist-based theme on 2026-08-01; that system and its `design/_ds/`
+token sheet were removed, and the reasoning is in
+[`PLAN.md`](PLAN.md#design-system). The palette is a single scheme, measured
+against WCAG rather than assumed.
 
 The lifecycle is local, then staging, then production. Going live means
 connecting the domain, TLS, and Cloudflare. Staging is never indexed and never
@@ -52,28 +56,29 @@ holds real credentials.
 
 ## Current state
 
-Build steps 0 to 8 are complete. WordPress runs locally at
-`http://localhost:8080` on Apache with `php-fpm` and MySQL inside the container,
-the whole stack is codified in `docker/Dockerfile`, and the `the-abyss` theme is
-active, with the Modernist tokens verified in the rendered page rather than only
-in the files.
+WordPress runs locally at `http://localhost:8080` on Apache with `php-fpm` and
+MySQL inside the container, the whole stack codified in `docker/Dockerfile`.
 
-Step 7b took the theme through the whole component layer and the whole template
-set: the card grid, nav, article, buttons, tags, forms, table and dialog, plus
-`searchform.php`, `page.php`, `404.php` and `comments.php`. The responsive pass
-is done and the theme's overflow floor is a 308px viewport.
+The theme is complete and verified by screenshot at three widths: every component
+family, the full template set, the block-editor content layer, and the homepage
+sections against the reference. Compliance is built in rather than remembered —
+affiliate `rel`, a disclosure above the article, and `Article` JSON-LD, all keyed
+off one list of monetised domains that is empty until the first programme is
+joined.
 
-Step 7c added the compliance layer: affiliate `rel` attributes, the visible
-disclosure, and `Article` JSON-LD, all keyed off one list of monetised domains
-that is empty until the first programme is joined.
+`scripts/provision.sh` has been proven end to end in a throwaway container: bare
+Ubuntu to a working site, with five defects found and fixed in the process. What
+it still cannot cover there — systemd service management, the firewall, swap, and
+certbot — is reported as `SKIPPED` rather than passed.
 
-**Written is ahead of verified, and the gap is tracked rather than implied.**
-`.abyss-radio`, `.abyss-seg`, `.abyss-table`, the dialog, pagination, and the
-logged-out comment form have not rendered yet. See the step 7b and 7c entries in
-the build log and the verification-gap item in [`PLAN.md`](PLAN.md#status).
+**The local database is disposable, decided 2026-08-01.** Only the theme, the
+Docker setup, the scripts, and these documents are in Git. Local content and
+plugin configuration are fixtures, and plugin setup happens once on the real
+server rather than twice. See the delivery sequence in
+[`PLAN.md`](PLAN.md#delivery-sequence).
 
-Next is step 9, the read-only droplet inventory. The full roadmap and its
-checkboxes are in [`PLAN.md`](PLAN.md#status).
+Next is launching the EC2 instance and running the inventory. The full roadmap is
+in [`PLAN.md`](PLAN.md#status).
 
 ## Build log
 
@@ -1152,3 +1157,73 @@ stop editing" anchor for WP-CLI to insert before. Not an issue for the droplet:
 `provision.sh` creates that file with `wp config create`, which emits the anchor.
 Verified locally through the filter instead, which is the path an ESP plugin
 would use anyway.
+
+#### Step 8e — provision.sh proven in a throwaway container ✅
+
+**Goal:** run `scripts/provision.sh` end to end, from bare Ubuntu to a working
+site, before it is ever pointed at an EC2 instance.
+
+**Why it matters:** the script had never executed. Not once, anywhere. Debugging
+it on EC2 would have meant debugging it alongside security groups, Elastic IPs,
+and IMDS, with a relaunch as the cost of each mistake. A container tests it for
+free.
+
+**Commands:**
+
+```bash
+# ON HOST — bare Ubuntu with only the packages provision.sh installs
+docker build -t abyss-provtest-base <scratch>/provtest
+docker run -d --name abyss-provtest -v "$PWD:/repo:ro" abyss-provtest-base
+
+docker exec abyss-provtest bash -lc '
+  cp -r /repo /work && chmod -R u+w /work
+  printf "…\n…\n" | SITE_DOMAIN=test.local ADMIN_USER=casey ADMIN_EMAIL=a@b.com \
+    REPO_DIR=/work bash /work/scripts/provision.sh'
+```
+
+**Verify:** WordPress 7.0.2 installed, `abyss-theme` active, all nine plugins in
+their intended states (seven active, `wp-super-cache` and `google-site-kit`
+inactive), permalinks `/%category%/%postname%/` with a real `.htaccess`, and
+`curl` returning 200 with `<title>The-abyss`. Swap and firewall reported
+`SKIPPED` rather than silently passing.
+
+**Five defects found, all fixed:**
+
+1. **`/var/www/the-abyss` created as root**, so `wp core download` running as
+   `www-data` died with "is not writable by current user". The `chown` came
+   after the download. This would have failed identically on EC2.
+2. **`mysql` and `php-fpm` were assumed to be running.** True under systemd,
+   false anywhere else, and the symptom was a socket error that reads like a
+   permissions problem. Now started explicitly, which is a no-op on EC2.
+3. **`/run/mysqld` left `0700`** without systemd-tmpfiles, so `www-data` could
+   not traverse it to reach the socket. WordPress reported "Error establishing a
+   database connection" while the same credentials worked from a root shell.
+   Fixed only on no-systemd hosts, so it never touches what systemd owns.
+4. **`wp rewrite flush --hard` wrote empty `.htaccess` markers**, because WP-CLI
+   cannot detect Apache from the command line. Every URL except the home page
+   would have 404ed on a fresh host, with an `.htaccess` that looks right at a
+   glance. Now written explicitly.
+5. **WP-CLI cache warning on every call**, because `www-data` cannot write its
+   own home. Silenced at the source by creating the directory with the right
+   owner.
+
+**Two guards fired correctly during the run**, which is worth recording as
+working rather than only as written: the script refused a `/var/www/the-abyss`
+that existed without WordPress in it, and refused to continue when the database
+existed but `wp-config.php` did not, rather than guessing a password.
+
+**Q&A:**
+
+*Why not test on EC2 directly?* Because the first execution found five defects,
+three of which would have failed the run outright. Each would have been diagnosed
+on a live instance alongside unfamiliar AWS surface area.
+
+*What does the container still not cover?* Service management under systemd, the
+firewall, swap, and certbot. Those stay untested until EC2 and are reported as
+`SKIPPED` rather than passed.
+
+*Why did `mysql-server` install fine in a built image but fail via `docker exec`?*
+Its post-install script starts the server and then cannot stop it when
+`policy-rc.d` denies the call. During an image build the sequence completes; run
+interactively it leaves the package half-configured. The test image installs the
+packages at build time for exactly that reason.

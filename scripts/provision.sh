@@ -135,7 +135,11 @@ a2enconf "$FPM_CONF" >/dev/null
 # The vhost is the same file the container uses, with only ServerName changed —
 # which is exactly the claim docker/the-abyss.conf makes about itself. Copying
 # and substituting keeps that claim true instead of aspirational.
-install -d "$WP_DIR"
+# Owned by www-data from the moment it exists. Found by the container test on
+# 2026-08-01: created as root, the later `wp core download` runs as www-data and
+# dies with "'/var/www/the-abyss/' is not writable by current user". The chown
+# further down came after the download, which is too late to help.
+install -d -o www-data -g www-data "$WP_DIR"
 sed "s/ServerName localhost/ServerName $SITE_DOMAIN\n    ServerAlias www.$SITE_DOMAIN/" \
 	"$REPO_DIR/docker/the-abyss.conf" > /etc/apache2/sites-available/the-abyss.conf
 
@@ -160,11 +164,35 @@ if ! command -v wp >/dev/null; then
 	wp --allow-root --info >/dev/null
 fi
 
+# www-data's home is /var/www, which it does not own, so WP-CLI cannot create its
+# cache and prints "Failed to create directory '/var/www/.wp-cli/cache/'" on
+# every call. Creating it with the right owner silences that at the source rather
+# than by redirecting warnings away.
+install -d -o www-data -g www-data /var/www/.wp-cli/cache
 wp_run() { sudo -u www-data -- wp --path="$WP_DIR" "$@"; }
 
 # --- database ---------------------------------------------------------------
 
 log "Database"
+
+# Started explicitly rather than assumed. On EC2 systemd starts both at install
+# time, so this is a no-op there; in a container nothing starts them and every
+# mysql call below would fail with a socket error that reads like a permissions
+# problem. Being explicit costs nothing and removes a whole class of confusing
+# first-run failure.
+svc start mysql
+svc start "$FPM_CONF"
+sleep 2
+
+# Container only. systemd-tmpfiles normally creates /run/mysqld as 0755, and
+# without it mysqld's own startup leaves the directory 0700 mysql:mysql. The
+# socket inside is world-writable, but www-data cannot traverse the directory to
+# reach it, so WordPress reports "Error establishing a database connection"
+# while the identical credentials work from a root shell. Guarded to no-systemd
+# hosts so it never touches permissions systemd owns on a real server.
+if ! has_systemd && [ -d /run/mysqld ]; then
+	chmod 0755 /run/mysqld
+fi
 
 if mysql -N -B -e "SHOW DATABASES LIKE '$DB_NAME';" | grep -q "$DB_NAME"; then
 	echo "database $DB_NAME already exists, leaving it alone"

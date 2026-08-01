@@ -504,9 +504,14 @@ Consequences, accepted deliberately:
    Modernist documentation retired, the palette normalised to one scheme, and the
    header, footer, menus, and homepage sections built against the reference
    screenshots.
-3. **Test `scripts/provision.sh` in a throwaway container.** Next, and moved
-   ahead of everything server-side deliberately. The script has never executed,
-   not once, anywhere. It is the largest untested risk between here and a working
+3. **Test `scripts/provision.sh` in a throwaway container.** Done 2026-08-01.
+   Bare Ubuntu to a working site: WordPress installed, theme active, nine
+   plugins in their intended states, permalinks working, HTTP 200. Five defects
+   were found and fixed, three of which would have failed the run outright, and
+   two safety guards fired correctly. Full entry in the build log.
+
+   It was moved ahead of everything server-side deliberately, because the script
+   had never executed, not once, anywhere. It is the largest untested risk between here and a working
    server, and a container tests it for free. Doing this on EC2 first would mean
    debugging the script at the same time as security groups, Elastic IPs, and
    IMDS, with a relaunch as the cost of each mistake.
