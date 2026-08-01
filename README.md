@@ -58,10 +58,14 @@ set: the card grid, nav, article, buttons, tags, forms, table and dialog, plus
 `searchform.php`, `page.php`, `404.php` and `comments.php`. The responsive pass
 is done and the theme's overflow floor is a 308px viewport.
 
+Step 7c added the compliance layer: affiliate `rel` attributes, the visible
+disclosure, and `Article` JSON-LD, all keyed off one list of monetised domains
+that is empty until the first programme is joined.
+
 **Written is ahead of verified, and the gap is tracked rather than implied.**
-`.abyss-radio`, `.abyss-seg`, `.abyss-table`, the dialog, and the comment thread
-and form have not rendered yet. See the step 7b entries in the build log and the
-verification-gap item in [`PLAN.md`](PLAN.md#status).
+`.abyss-radio`, `.abyss-seg`, `.abyss-table`, the dialog, pagination, and the
+logged-out comment form have not rendered yet. See the step 7b and 7c entries in
+the build log and the verification-gap item in [`PLAN.md`](PLAN.md#status).
 
 Next is step 9, the read-only droplet inventory. The full roadmap and its
 checkboxes are in [`PLAN.md`](PLAN.md#status).
@@ -824,3 +828,257 @@ fighting the symptom with moderation.
 *Why style core's comment walker instead of replacing it?* The same reasoning as
 binding `.abyss-table` to the core table block. A custom walker means maintaining
 a copy of WordPress's markup forever, for a part of the page nobody redesigns.
+
+#### Step 7c — compliance, structured data, and the gaps a real post exposed ✅
+
+**Goal:** close the three live-site requirements that were theme work, then fix
+what publishing an actual article revealed about them.
+
+**Why it matters:** `PLAN.md` lists affiliate `rel` attributes, visible FTC and
+Competition Bureau disclosures, and author and review-date schema as
+requirements. Only the first existed, and it turned out to be wrong.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+php -l /var/www/the-abyss/wp-content/themes/the-abyss/functions.php
+```
+
+**Result:** clean. The disclosure rendered above the first paragraph of `?p=14`
+with the accent rule, and the comment form rendered for a logged-in user.
+
+**The correction that mattered.** The `rel` filter had been treating every
+outbound link as an affiliate link, and the new disclosure inherited that test.
+The AI Bubble post showed what it meant: citations to Yahoo Finance, The Hustle
+and four numbered footnotes were all tagged `rel="sponsored nofollow"`, under an
+affiliate disclosure, in an article that earns nothing. Both directions are
+misstatements. Marking a citation `sponsored` discards the editorial signal the
+link existed to send, and a disclosure that cries wolf trains readers to skip it
+on the articles where it is true. Both now key off one list of monetised domains,
+empty by default and set through the `the_abyss_affiliate_domains` filter, with
+subdomain matching and a dot-boundary check so `amazon.com` covers
+`www.amazon.com` but not `notamazon.com`.
+
+**Three further gaps closed in the same pass**, none of which a browser check
+would have surfaced:
+
+1. `add_editor_style()` loaded `main.css` but not `fonts.css`. `main.css` asks
+   for Archivo while the `@font-face` rules that define it live in `fonts.css`,
+   so the editor was rendering every heading in a system fallback. An author
+   composing against type the reader never sees is the exact failure editor
+   styles exist to prevent.
+2. `single.php` had no `wp_link_pages()`, so a long article split with
+   `<!--nextpage-->` ended at part one with nothing saying there was more. Long
+   comparisons are what this site publishes.
+3. `the_posts_pagination()` had no styles at all. It is the blog's primary
+   navigation past ten posts and was invisible only because three posts never
+   trigger it. The current page is marked with the same inset accent rule the
+   nav uses for `aria-current`, because colour alone would fail WCAG 1.4.1.
+
+**Q&A:**
+
+*Why is the affiliate domain list empty by default?* Because an empty list tags
+nothing and discloses nothing, which is the correct behaviour for a site with no
+programmes yet. The alternative default, "assume every outbound link is paid",
+is what produced the misstatement above.
+
+*Does a domain list not just move the discipline problem?* It moves it from once
+per link to once per programme, which is a few lines a year against a decision on
+every link an author ever writes. That is why it stays structural.
+
+*Why does the JSON-LD carry no `Review` or `aggregateRating`?* An affiliate
+comparison marked up as a rating is what Google's self-serving-review policy
+prohibits, and the penalty is a manual action rather than a lost rich result.
+`Article` claims only what the page actually is.
+
+#### Step 7b (part 2) — the block editor content layer ✅
+
+**Goal:** style the markup the block editor emits, not just the markup the theme
+emits.
+
+**Why it matters:** everything built up to here styled the theme's own templates.
+Long-form editor content is the product, and a wide image, a caption, a float, a
+pull quote, a code block, or a core button all arrived unstyled. The token sheet
+says nothing about any of it, so the section is a documented gap held to the
+readme's do-not list instead: zero radius, 2px rules rather than hairlines, flush
+left, nothing decorated.
+
+**Commands:**
+
+```bash
+# ON HOST
+docker compose exec -T web bash -c \
+  'for f in /var/www/the-abyss/wp-content/themes/the-abyss/*.php; do php -l "$f"; done'
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/
+curl -s 'http://localhost:8080/?s=test' | grep -o 'Search results for:[^<]*'
+```
+
+**Verify:** `No syntax errors detected` across all nine templates. Home 200,
+`/no-such-page/` 404, and `/?s=test` renders *Search results for: test*, which
+closes the search-heading fix that had been carried as unproven. Custom-property
+sweep finds no undefined `--abyss-*` reference; braces balance at 169/169.
+
+**Q&A:**
+
+*Why does `alignfull` stop at 1440px instead of running edge to edge?* Modernist
+opens with "nothing floats and nothing is decorated" and asks that the grid stay
+visible. A true viewport bleed erases the column the rest of the page is built
+on. Recorded as an interpretation of the system rather than an oversight.
+
+*Why is grayscale not forced on every content image?* The readme's rule is about
+photography. Forcing it would also drain the charts and screenshots a finance
+article runs on, so it stays opt-in through the `.grayscale` wrapper the author
+applies.
+
+*How does full-width bleed avoid the horizontal scrollbar this stylesheet
+refuses to hide?* `--abyss-bleed` derives from `(100vw - 100%) / 2` less the
+container's padding. `100vw` includes the scrollbar, so the expression
+over-reads by about half a scrollbar width, and subtracting the full 24px of
+padding leaves more slack than that.
+
+#### Step 8 — WP-CLI and the plugin baseline ✅
+
+**Goal:** get WP-CLI into the image and install the launch plugin set as a
+reproducible list rather than a sequence of clicks in wp-admin.
+
+**Why it matters:** the plugin set is part of the build, so it belongs in a
+command that can be replayed on the droplet. WP-CLI comes from the official phar
+rather than apt, because Debian's package lags and the phar is what upstream
+supports. The same two lines work unchanged on the droplet.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+wp --path=/var/www/the-abyss plugin install \
+  seo-by-rank-math fluent-smtp updraftplus redirection \
+  limit-login-attempts-reloaded complianz-gdpr thirstyaffiliates --activate
+
+wp --path=/var/www/the-abyss plugin install wp-super-cache google-site-kit
+wp --path=/var/www/the-abyss plugin list --fields=name,status,version
+```
+
+Run as `www-data`, never as root, so plugin files land with the ownership Apache
+and php-fpm already use.
+
+**Verify:** WordPress 7.0.2. Nine plugins installed, seven active; `wp-super-cache`
+and `google-site-kit` deliberately left inactive, the first because a page cache
+in development hides template changes, the second because it does nothing until
+its Google OAuth is completed against a real domain. Home and a single post both
+still return 200 after activation.
+
+**Q&A:**
+
+*Why is there no newsletter plugin in the list?* Because the sending question has
+to be settled first. DigitalOcean blocks outbound port 25 on droplets by default,
+and even with it open, bulk mail from a droplet IP with no sending reputation
+lands in spam. Newsletter delivery goes through an external provider regardless
+of which plugin front-ends it, so the provider is the decision and the plugin
+follows from it.
+
+*Why FluentSMTP when nothing sends mail yet?* Transactional mail fails silently.
+Password resets, comment notifications, and form mail all disappear with no error
+in the log, and the failure is usually discovered by a locked-out user rather
+than by a check.
+
+*Why not Wordfence or Jetpack?* Both are heavy, and this droplet already serves a
+live portfolio site whose resources they would share. Login hardening is covered
+by Limit Login Attempts Reloaded plus fail2ban at the OS layer.
+
+#### Step 8c — closing the verification gap ✅
+
+**Goal:** put every component family in front of a browser, rather than
+inferring from a 200 response that it looks right.
+
+**Why it matters:** the theme had a recorded debt — `.abyss-radio`,
+`.abyss-seg`, `.abyss-table`, the dialog, and the whole comment thread had never
+rendered. `php -l` and an HTTP 200 prove a page does not fatal. They prove
+nothing about contrast, alignment, or whether an image fills the box it was
+given.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+wp --path=/var/www/the-abyss post create /tmp/sink.html \
+   --post_title="Block layer kitchen sink" --post_status=publish --porcelain
+wp --path=/var/www/the-abyss post create /tmp/comp.html --post_type=page \
+   --post_title="Component check" --post_status=publish --porcelain
+
+# ON HOST
+firefox --headless --screenshot sink-1440.png --window-size=1440,3000 \
+        "http://localhost:8080/?p=23"
+```
+
+Two fixtures: a post exercising every block type, and a page carrying the
+families no template emits. Screenshotted at 1440, 800, and 380.
+
+**Verify:** all four button states, tags, fields, radio, segmented control,
+table, cards with elevation, dialog, threaded comments and form, floats stacking
+below 600px, and the unbreakable-token wrap all render correctly. Equal-height
+cards confirmed visually. No horizontal scrollbar at any of the three widths. No
+PHP notices in `debug.log` during any render.
+
+Four defects found by looking, all fixed and re-screenshotted:
+
+1. `.wp-block-button__link` used the raw accent, reintroducing the 3.76:1
+   contrast failure `.abyss-btn--primary` already documents a divergence for.
+   Now accent-700 (6.41:1).
+2. `alignwide` / `alignfull` images did not fill their figure, so a 747px image
+   sat flush left in a 1440px box.
+3. The code block was commented as scrolling; it wraps, because core ships
+   `white-space: pre-wrap`.
+4. `single.php` printed a trailing "by" when a post had no author.
+
+**Q&A:**
+
+*Why headless Firefox rather than asking for a manual check?* It is repeatable,
+it covers three widths in one command, and it produces an artefact that can be
+compared after a change. The manual drag test took two phases to actually
+happen; this took one command.
+
+*Do the fixtures stay?* Yes, as regression fixtures. Remove them before launch
+with `wp post delete 23 24 --force`.
+
+#### Step 8d — the provisioning script ✅
+
+**Goal:** one script that turns a fresh Ubuntu 24.04 host into this stack.
+
+**Why it matters:** this is why the container was built by hand. Every step was
+learned once, in a place that was free to break, so the droplet script could be
+written from something proven rather than from documentation. `scripts/plugins.txt`
+is read by the script so the two environments cannot drift.
+
+**Commands:**
+
+```bash
+# ON HOST
+bash -n scripts/provision.sh                      # syntax
+while read -r l <&3; do ...; done 3< scripts/plugins.txt   # parser dry run
+```
+
+**Verify:** syntax clean. The plugin-list parser, run standalone against the real
+file, yields seven activate and two install-only — matching the local install
+exactly. The `ServerName` substitution against `docker/the-abyss.conf` produces a
+correct vhost. **Not yet run on a host**, so it is written and checked, not
+proven.
+
+**Q&A:**
+
+*Where do the passwords come from?* Silent `read -rsp` prompts. Never an
+argument, never a default, never in the file — so they stay out of the shell
+history and the process list. Same tier-0 reason the container entrypoint refuses
+to generate `wp-config.php`.
+
+*What stops it damaging a site already on the host?* It refuses to touch a
+`/var/www/the-abyss` that is not a WordPress install, and it never disables a
+vhost it did not create — it warns about them instead.
+
+*Why does it not run certbot?* Certbot burns a Let's Encrypt rate limit if DNS
+does not already resolve to the host, and pointing DNS is an outward-facing
+action that belongs to the human. The script prints the remaining steps instead.
+
+*Why one `while read` on file descriptor 3?* `wp` inherits stdin. A plain
+`while read; done < file` lets the first `wp plugin install` swallow the rest of
+the list, so one plugin installs and the others are silently skipped.

@@ -119,6 +119,20 @@ RUN a2enmod proxy_fcgi setenvif \
 # Docker never substitutes inside a COPYed file, so the variable arrives intact.
 COPY the-abyss.conf /etc/apache2/sites-available/the-abyss.conf
 
+# WP-CLI. Added 2026-08-01, when plugin installation became the next real task
+# and doing it through wp-admin meant clicking rather than a reproducible list.
+#
+# Installed from the official phar rather than apt: Debian's wp-cli package lags
+# badly, and the phar is the upstream-supported distribution. The same two lines
+# work unchanged on the droplet, which is the point.
+#
+# --info is run at build time as a smoke test, so a broken download fails the
+# build here rather than surfacing as a confusing error during a later step.
+RUN curl -fsSL -o /usr/local/bin/wp \
+      https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+ && chmod +x /usr/local/bin/wp \
+ && wp --allow-root --info
+
 RUN mkdir -p /var/www/the-abyss \
  && a2enmod rewrite \
  && a2dissite 000-default \

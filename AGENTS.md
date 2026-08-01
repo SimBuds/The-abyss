@@ -1124,41 +1124,52 @@ the empty template it defines.
      rules belong here and in PLAN.md or README.md, never in the universal
      body above. -->
 
-### Teach, do not take over
+### Build it, do not narrate it
 
-This is a learning project with a real deliverable. The human performs each
-infrastructure and WordPress step, whichever provider hosts it.
+**Revised 2026-08-01, replacing *Teach, do not take over*.** The learning phase
+covered what it needed to: the container, the LAMP stack, and the token layer
+were all built by hand and are documented in the `README.md` build log. The
+project is now in delivery, and the constraint that made sense while learning
+the stack is now the thing slowing the site down. What changed is the *pace and
+who types*, not the safety boundaries — those are unchanged and restated below.
 
-- Explain what the step does and why it matters.
-- **Always give the exact commands, in runnable form, labelled by where they
-  run.** Never withhold or summarise a command because the human is the one who
-  executes it. "Run this yourself" without the command is a failed instruction.
+- **Build complete, working units.** A component family, a template set, or a
+  feature end to end, not one selector at a time. Generating the whole theme in
+  one pass is now expected rather than forbidden.
+- **Do not stop for approval between phases of an approved piece of work.** Run
+  the phases through and report once at the end.
+- **Do not explain what a step does unless asked.** Reasoning that a future
+  maintainer needs goes in a code comment, `PLAN.md`, or the build log, where it
+  survives. Reasoning that only the current reader needs goes nowhere.
+- **Run the container's commands directly.** Repo tooling, `docker compose`,
+  `docker compose exec`, `php -l`, WP-CLI against the local container, and local
+  MySQL are the agent's own job now, read-only and mutating alike. The container
+  is disposable and rebuildable from `docker/`, so a mistake there costs a
+  rebuild.
+- **Still hand every command over, in runnable form and labelled**, whenever the
+  human is the one who must run it. That is unchanged, and "run this yourself"
+  without the command is still a failed instruction.
 - **Prefer commands over console click-paths.** Where a CLI exists, the commands
   are the primary path and a click-path is an optional addition, never a
   substitute. A click-path is the only acceptable form when no CLI equivalent
-  exists, such as accepting terms, a browser-only console setting, or the first
-  cloud identity created before any CLI credentials exist.
-- Stop after one step and let the human run it.
-- Answer questions before moving on.
-- Give the read-only verification commands for the human to run, then wait for
-  the output. Do not run them.
-- Update `README.md` only after verification.
-- Do not SSH into the server or configure it for the human. The verification
-  commands under *Verify before documenting* that touch the server are run by
-  the human, who shares the output.
-- Do not generate the complete theme, site, or infrastructure in one pass.
+  exists, such as accepting terms or a browser-only console setting.
+- Update `README.md` after verification, not before.
 
-Editing files in this repository is the assistant's work. Running
-infrastructure, Git, WordPress, and database commands is the human's.
+**The safety boundaries below did not change and are not pedagogical.**
 
-**Divergence recorded 2026-07-29.** The universal body under *Command
-boundaries* makes repo-local and read-only commands the agent's own job. That
-holds for this repository's own tooling (`git status`, `rg`, `ls`, the test
-runner). It does **not** extend to the hosting account, the container, the
-droplet, MySQL, or WP-CLI, where this rule wins and the human runs everything,
-including read-only checks. The reason is pedagogical rather than technical:
-the human is learning the stack, and an agent that runs the verification
-removes the step being taught.
+- **The droplet is a live host and stays human-only.** It serves a running
+  portfolio site. The agent does not SSH into it, configure it, or run commands
+  against it, read-only ones included. Every droplet, production-MySQL, and
+  production-WP-CLI instruction is written out for the human to run, and the
+  human shares the output. This is the tier-0 blast-radius rule, not a teaching
+  device, and the pace change above does not touch it.
+- **No git writes on the human's behalf**, and **no secrets at rest** — both
+  unchanged, both tier 0.
+- **The final outward-facing action is the human's.** Deploying to the droplet,
+  pointing DNS, and publishing are theirs to trigger.
+- **Anything not reversible by a rebuild still gets confirmed first**, including
+  deleting a volume, dropping a database, or overwriting a file that is not in
+  Git.
 
 Record completed steps in this shape. This is the single definition of the
 build-log entry format, and `README.md` holds the entries themselves:
@@ -1172,7 +1183,17 @@ build-log entry format, and `README.md` holds the entries themselves:
 **Q&A:** the human's questions and answers.
 ```
 
-The Q&A block is required, even when it says `none`.
+The Q&A block stays required, including when it says `none`. It is the part of
+the log that records *why* rather than *what*, and it is the reason the earlier
+entries are still readable. The 2026-08-01 pace change removed the per-step
+approval gate, not the record.
+
+**Verify** is equally not optional: an entry without evidence is a claim.
+
+Streamlined 2026-08-01: one build-log entry now covers a whole delivered unit,
+not one step of it. A component family, a template set, or a feature end to end
+gets a single entry with one Q&A block, rather than a separate entry per
+selector or per file.
 
 ### Command labels
 

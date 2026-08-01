@@ -1214,6 +1214,270 @@ textarea.abyss-input {
 	border-inline-start: 2px solid var(--abyss-color-accent);
 }
 
+/* ---------------------------------------------------------------------------
+   Block editor content.
+
+   Added 2026-08-01. Everything above this point styles markup the theme emits.
+   This section styles markup the *editor* emits, which the theme does not
+   control and cannot rename. Without it a wide image, a caption, a float, or a
+   pull quote renders unstyled, and long-form editor content is the product.
+
+   The token sheet has nothing to say about any of this, so the whole section is
+   a documented gap. What it is held to instead is the readme's do-not list:
+   zero radius anywhere, 2px rules rather than hairlines or whitespace, flush
+   left, nothing decorated.
+   --------------------------------------------------------------------------- */
+
+/* The bleed available on each side before the content column hits the viewport.
+ *
+ * Inside .site-main, 100% is the content box, so (100vw - 100%) / 2 is the free
+ * space per side including .site-main's padding, which the --space-6 term then
+ * takes back. Clamped to the 240px that separates the 960px content width from
+ * the 1440px wide width, and floored at 0 so a narrow viewport gets no bleed at
+ * all rather than a negative one.
+ *
+ * 100vw includes the scrollbar, so this over-reads by roughly half a scrollbar
+ * width. Subtracting the full 24px of padding leaves more slack than that, which
+ * is why the alignment rules below cannot produce the horizontal scrollbar this
+ * stylesheet refuses to hide. */
+.abyss-article__content {
+	--abyss-bleed: clamp(0px, calc((100vw - 100%) / 2 - var(--abyss-space-6)), 240px);
+}
+
+/* alignwide drops the prose measure and takes the full content column. The
+   measure exists for sustained reading; a table or a chart is not that. */
+.abyss-article__content > .alignwide {
+	max-width: none;
+}
+
+/* alignfull additionally bleeds out toward the wide width. It stops at 1440px
+   rather than running edge to edge: Modernist is a grid system whose readme
+   opens with "nothing floats and nothing is decorated" and asks that the grid
+   stay visible, and a true viewport bleed erases the column the rest of the
+   page is built on. Recorded as an interpretation, not an oversight. */
+.abyss-article__content > .alignfull {
+	max-width: none;
+	margin-inline: calc(-1 * var(--abyss-bleed));
+}
+
+.abyss-article__content > .aligncenter {
+	margin-inline: auto;
+}
+
+/* Floats are capped at 50% and drop to full width below 600px, where a floated
+   image leaves a column of text too narrow to read. */
+.abyss-article__content > .alignleft,
+.abyss-article__content > .alignright {
+	max-width: 50%;
+}
+
+.abyss-article__content > .alignleft {
+	float: left;
+	margin-inline-end: var(--abyss-space-6);
+	margin-block: var(--abyss-space-1) var(--abyss-space-4);
+}
+
+.abyss-article__content > .alignright {
+	float: right;
+	margin-inline-start: var(--abyss-space-6);
+	margin-block: var(--abyss-space-1) var(--abyss-space-4);
+}
+
+@media (max-width: 600px) {
+	.abyss-article__content > .alignleft,
+	.abyss-article__content > .alignright {
+		float: none;
+		max-width: 100%;
+		margin-inline: 0;
+	}
+}
+
+/* A float must not escape its section and drag itself alongside the next
+   heading, the tag list, or the comments. */
+.abyss-article__content::after {
+	content: '';
+	display: table;
+	clear: both;
+}
+
+/* Images and captions. figcaption is chrome, so it takes the meta treatment
+   rather than body size, and stays flush left under the image rather than
+   centred. */
+.abyss-article__content figure {
+	margin-inline: 0;
+}
+
+.abyss-article__content figcaption,
+.abyss-article__content .wp-caption-text {
+	margin-block-start: var(--abyss-space-2);
+	font-size: 12px;
+	color: color-mix(in srgb, var(--abyss-color-text) 60%, transparent);
+	text-align: left;
+	max-width: var(--abyss-prose-width);
+}
+
+.abyss-article__content .wp-block-image img,
+.abyss-article__content .wp-caption img {
+	width: auto;
+	height: auto;
+	max-width: 100%;
+}
+
+/* Wide and full images fill the box they were given.
+ *
+ * Added 2026-08-01. Without this the rule above holds the image at its intrinsic
+ * width while the figure still expands, so an alignfull image narrower than the
+ * bleed sat flush left in a box far wider than itself and read as a broken
+ * layout rather than a deliberate one. Observed at 1440px: a 747px image inside
+ * a 1440px box.
+ *
+ * The consequence is that an undersized source is upscaled and will look soft,
+ * which is a content requirement rather than something CSS can solve: a full
+ * width image wants to be at least 1440px on its long edge, and a wide one at
+ * least 960px. The registered `the-abyss-hero` size is 1920x1080 for this
+ * reason. */
+.abyss-article__content > .alignwide img,
+.abyss-article__content > .alignfull img {
+	width: 100%;
+}
+
+/* Grayscale stays opt-in, applied by the author with the readme's wrapper
+   class. Forcing it on every content image would also drain the charts and
+   screenshots a finance article runs on, and the readme's rule is about
+   photography. */
+
+/* Galleries reuse the card grid's auto-fit behaviour so there is one responsive
+   idea in the stylesheet rather than two. */
+.abyss-article__content .wp-block-gallery.has-nested-images {
+	gap: var(--abyss-space-3);
+}
+
+/* Separator is the design's 2px rule. The do-not list forbids softening it to a
+   hairline, which is exactly what the core default is. */
+.abyss-article__content .wp-block-separator {
+	height: 2px;
+	border: 0;
+	background: var(--abyss-color-divider);
+	margin-block: var(--abyss-space-8);
+	opacity: 1;
+}
+
+.abyss-article__content .wp-block-separator:not(.is-style-wide):not(.is-style-dots) {
+	width: 100%;
+	max-width: var(--abyss-prose-width);
+}
+
+/* Pull quote gets the same accent rule as blockquote rather than a second
+   device. Left-aligned, because the readme centres nothing. */
+.abyss-article__content .wp-block-pullquote {
+	padding: 0;
+	border: 0;
+	border-inline-start: 2px solid var(--abyss-color-accent);
+	padding-inline-start: var(--abyss-space-4);
+	text-align: left;
+}
+
+.abyss-article__content .wp-block-pullquote blockquote {
+	border: 0;
+	padding-inline-start: 0;
+}
+
+.abyss-article__content .wp-block-pullquote p {
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	font-size: clamp(19px, 1rem + 0.94vw, 25px);
+	line-height: 1.2;
+	letter-spacing: -0.015em;
+}
+
+.abyss-article__content cite {
+	display: block;
+	margin-block-start: var(--abyss-space-2);
+	font-size: 12px;
+	font-style: normal;
+	color: color-mix(in srgb, var(--abyss-color-text) 60%, transparent);
+}
+
+/* Code.
+ *
+ * Correction 2026-08-01: an earlier version of this comment claimed the block
+ * scrolls rather than wrapping. It wraps. WordPress core ships
+ * `white-space: pre-wrap` on `.wp-block-code code`, which wins here, and a
+ * screenshot of a deliberately over-long line showed it breaking across three
+ * lines with no scrollbar. `overflow-x: auto` is kept as a backstop for the
+ * cases core does not cover, such as a wide `<pre>` pasted in as raw HTML. */
+.abyss-article__content pre,
+.abyss-article__content .wp-block-code {
+	max-width: none;
+	overflow-x: auto;
+	padding: var(--abyss-space-3);
+	background: var(--abyss-color-surface);
+	border-radius: var(--abyss-radius-md);
+	font-size: 13px;
+	line-height: 1.5;
+	tab-size: 2;
+}
+
+.abyss-article__content :not(pre) > code {
+	padding: 2px 5px;
+	background: var(--abyss-color-surface);
+	border-radius: var(--abyss-radius-sm);
+	font-size: 0.9em;
+}
+
+/* Embeds keep their aspect ratio. responsive-embeds is declared in
+   functions.php, which is what makes core emit the wrapper this targets. */
+.abyss-article__content .wp-block-embed__wrapper {
+	max-width: none;
+}
+
+/* Core's button block. It carries .wp-element-button, the same hook
+   theme.json's elements.link explicitly excludes, so it is safe to give it the
+   primary button's treatment without fighting the link colour. */
+.abyss-article__content .wp-block-button__link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	font-size: 14px;
+	line-height: 1.2;
+	padding: var(--abyss-space-2) calc(var(--abyss-space-3) * 1.2);
+	border-radius: var(--abyss-radius-md);
+	/* accent-700, NOT the accent. Corrected 2026-08-01 after a screenshot showed
+	   the core button rendering in bright accent next to a theme button in
+	   accent-700: this rule had reintroduced the exact contrast failure
+	   .abyss-btn--primary already documents a divergence for. White on #ec3013
+	   at 14px bold measures 3.76:1, short of the 4.5:1 WCAG 1.4.3 requires below
+	   18.66px bold. accent-700 on the ground is 6.41:1. Any new button surface
+	   has to start from the ramp, not from the accent. */
+	background: var(--abyss-color-accent-700);
+	color: var(--abyss-color-bg);
+	text-decoration: none;
+}
+
+.abyss-article__content .wp-block-button__link:hover {
+	background: var(--abyss-color-accent-800);
+	color: var(--abyss-color-bg);
+}
+
+.abyss-article__content .wp-block-button__link:active {
+	background: var(--abyss-color-accent-900);
+}
+
+.abyss-article__content .is-style-outline .wp-block-button__link {
+	background: transparent;
+	color: var(--abyss-color-accent-700);
+	border: 1px solid var(--abyss-color-accent-700);
+}
+
+/* A sticky post is marked with the accent rule rather than a tint or a badge,
+   which keeps it inside the design's one emphasis device. */
+.abyss-card.sticky {
+	border-inline-start: 2px solid var(--abyss-color-accent);
+}
+
 /* The affiliate disclosure, prepended to any article carrying an outbound link.
    It sits above the first paragraph on purpose: both the FTC and the Competition
    Bureau ask for a disclosure the reader meets before acting on a link, so

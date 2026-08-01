@@ -429,16 +429,51 @@ Phase B, the theme:
       `404.php`, and `comments.php`. `index.php` covers search acceptably, so a
       dedicated `search.php` is a refinement rather than a gap. See the
       verification gap below before treating any of it as proven.
-- [ ] **Verification gap, carried out of step 7b.** What has rendered in a
-      browser is narrower than what has been written: the card grid, both search
-      paths, the 404, the header and article, and the responsive drag. Not yet
-      seen at all: `.abyss-radio`, `.abyss-seg`, `.abyss-table`, the dialog, and
-      the whole comment thread and form. `.abyss-btn` and `.abyss-input` have
-      rendered once, in the search form. Two smaller items also open: the
-      `filemtime()` cache-busting change has never been confirmed in page
-      source, and the `accent-700` primary-button fill is a visual call nobody
-      has ruled on now that it is visible. None of this blocks step 9, but it is
-      a debt against the theme, not a finished surface.
+- [x] **Step 7c, compliance and structured data, 2026-07-31.** The three
+      live-site requirements that were theme work: affiliate `rel`, the visible
+      disclosure, and `Article` JSON-LD. All three now key off one list of
+      monetised domains rather than off "any outbound link", after a published
+      post showed the first version tagging editorial citations as paid
+      placements. Also closed in the same pass: `fonts.css` missing from the
+      editor styles, `wp_link_pages()` missing from `single.php`, and
+      `the_posts_pagination()` having no styles at all.
+- [x] **Step 7d, the block editor content layer, 2026-08-01.** Everything before
+      this styled markup the theme emits. This styles markup the *editor* emits,
+      which the theme cannot rename: `alignwide`, `alignfull`, floats, captions,
+      galleries, separators, pull quotes, code, core buttons, and sticky posts.
+      All of it was previously unstyled, and long-form editor content is the
+      product. The token sheet covers none of this markup, so the section is a
+      documented gap held to the readme's do-not list instead. Two calls worth
+      keeping: `alignfull` stops at the 1440px wide width rather than bleeding
+      edge to edge, because a viewport bleed erases the grid the readme asks to
+      keep visible; and grayscale stays opt-in, because forcing it would drain
+      the charts a finance article runs on.
+- [x] **Verification gap closed 2026-08-01.** Every component family has now
+      rendered and been looked at. Method: two fixture entries created with
+      WP-CLI — a "Block layer kitchen sink" post exercising every block type and
+      a "Component check" page carrying the families no template emits — then
+      screenshotted headless with the host's Firefox at 1440px, 800px, and 380px
+      and read. This is repeatable and is how theme changes should be checked
+      from here; it is far cheaper than asking for a manual drag test and it
+      catches things a 200 response cannot.
+
+      Confirmed working: buttons in all four states, tags, fields, radio,
+      segmented control, table, cards with elevation, dialog, the threaded
+      comment list and form, floats stacking below 600px, the unbreakable-token
+      wrap, and equal-height cards.
+
+      Four real defects were found by looking, all fixed and re-verified:
+      1. `.wp-block-button__link` was filled with the raw accent, reintroducing
+         the exact 3.76:1 contrast failure `.abyss-btn--primary` already carries
+         a documented divergence for. Now accent-700 throughout.
+      2. `alignwide` and `alignfull` images did not fill the box the figure
+         claimed, so a 747px image sat flush left inside a 1440px box and read as
+         broken. Now `width: 100%`, with the consequence that full-width sources
+         want to be at least 1440px on the long edge.
+      3. The code block was commented as scrolling. It wraps: core ships
+         `white-space: pre-wrap` on `.wp-block-code code`. Comment corrected.
+      4. `single.php` rendered "Published <date> by" with a trailing "by" when a
+         post had no author. Now the byline is dropped rather than padded.
 - [x] **Responsive pass done 2026-07-31.** Dragged 1600px to 380px with no
       horizontal scrollbar at any width, headings visibly smaller at the narrow
       end, and browser zoom confirming the `1rem +` term in each clamp responds
@@ -454,9 +489,63 @@ Phase C, hosting:
       2026-07-29, and revised 2026-07-31 when a dedicated droplet was created
       for this site. Both the decision and what the revision changed are under
       *Hosting* above.
+- [x] **Step 8b, WP-CLI and the plugin baseline, 2026-08-01.** WP-CLI added to
+      the image from the official phar, so the plugin set is a replayable command
+      rather than a click path, and the same two lines work on the droplet.
+      Installed and active locally: Rank Math (SEO and schema), FluentSMTP
+      (transactional mail), UpdraftPlus (backups), Redirection, Limit Login
+      Attempts Reloaded, Complianz (Canadian and GDPR consent), ThirstyAffiliates
+      (link cloaking, complementing the `rel="sponsored"` filter already in
+      `functions.php`). Installed but inactive: WP Super Cache, because a page
+      cache in development hides template changes, and Site Kit, because it does
+      nothing until its Google OAuth completes against a real domain. Rejected:
+      Jetpack and Wordfence, both too heavy for the droplet, and any page
+      builder, since the theme is custom.
+- [ ] **Step 8c, email and newsletter delivery. Blocked on a decision, not on
+      work.** The site is blog-led with a newsletter, so the list is the asset.
+      DigitalOcean blocks outbound port 25 on droplets by default, and bulk mail
+      from a droplet IP with no sending reputation lands in spam even when the
+      port is open. Delivery therefore goes through an external provider whatever
+      plugin front-ends it, which makes the provider the decision and the plugin
+      a consequence. Two shapes: a hosted list (Kit, MailerLite) where the
+      provider owns deliverability and the list stays portable, or self-hosted
+      FluentCRM relaying through Amazon SES, which is far cheaper per thousand
+      but puts warmup, bounce handling, and CASL/GDPR compliance on this project.
+      FluentSMTP is already installed and handles the relay leg either way.
+- [x] **Step 8d, the provisioning script, written 2026-08-01.**
+      `scripts/provision.sh` is the droplet-side mirror of `docker/Dockerfile`
+      and `docker/entrypoint.sh`. Building the container by hand first is what
+      made it writable from something proven rather than from a guess. It is
+      idempotent, takes no password as an argument or default (silent prompts
+      only, so nothing reaches the shell history or the process list), reuses
+      `docker/the-abyss.conf` with only `ServerName` substituted, and reads its
+      plugin list from `scripts/plugins.txt` so the droplet and the container
+      cannot drift.
+
+      It refuses to touch a `/var/www/the-abyss` that is not a WordPress install
+      and never disables a vhost it did not create, which is the guard against
+      the one genuinely destructive thing it could do on a host that has shared
+      space with a live portfolio site.
+
+      TLS is deliberately not run: certbot burns a rate limit if DNS does not
+      already resolve, and pointing DNS is an outward-facing action that belongs
+      to the human. The script ends by printing the remaining manual steps.
+
+      **Untested end to end.** Bash syntax checks clean and the plugin-list
+      parser was run standalone against the real file, matching the local
+      install exactly. Nothing has executed it on a host.
 - [ ] Step 9, read-only inventory of the dedicated droplet. Establishes the
       starting point, above all what the chosen image already installed.
       Nothing is installed or changed in this step.
+
+      `scripts/inventory.sh` covers every question in *What the Step 9 inventory
+      must record* and is written to be audited before it runs: every
+      redirection targets `/dev/null`, and it contains no `apt-get`, `install`,
+      `rm`, `mv`, `cp`, `chmod`, `chown`, `systemctl start/stop/enable`, `a2en*`,
+      or `sed -i`. Smoke-tested by running it on the development machine, where
+      it produced every section and degraded cleanly on the checks that need
+      root or a DigitalOcean metadata service. The human runs it on the droplet
+      and pastes the output back; that output is the deliverable.
 - [ ] Step 10 onward, planned against the inventory once it exists. On a
       dedicated droplet this is expected to follow the container's sequence
       closely, which is what the container was built to make possible.

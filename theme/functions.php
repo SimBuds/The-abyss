@@ -92,6 +92,19 @@ function the_abyss_assets() {
 		array( 'the-abyss-fonts' ),
 		the_abyss_asset_version( 'assets/css/main.css' )
 	);
+
+	/*
+	 * Threaded replies need this core script or the Reply link is inert: it
+	 * jumps to the form's anchor instead of moving the form under the comment
+	 * being replied to, and the reply is filed as a new top-level comment.
+	 *
+	 * Discussion settings own whether threading is on, so the condition reads
+	 * that rather than assuming. Loaded only on singular views with comments
+	 * open, because it is useless everywhere else.
+	 */
+	if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
+		wp_enqueue_script( 'comment-reply' );
+	}
 }
 add_action( 'wp_enqueue_scripts', 'the_abyss_assets' );
 
@@ -354,3 +367,100 @@ function the_abyss_affiliate_disclosure( $content ) {
 	return $notice . $content;
 }
 add_filter( 'the_content', 'the_abyss_affiliate_disclosure', 21 );
+
+/**
+ * Trim the excerpt to a length that suits the card grid.
+ *
+ * WordPress defaults to 55 words, which overruns a 260px card by a long way and
+ * makes the grid's rows uneven. 28 words is roughly three lines at the card's
+ * 13px body size.
+ *
+ * @param int $length Default word count.
+ * @return int
+ */
+function the_abyss_excerpt_length( $length ) {
+	return is_singular() ? $length : 28;
+}
+add_filter( 'excerpt_length', 'the_abyss_excerpt_length' );
+
+/**
+ * Replace the excerpt's trailing [...] with a typographic ellipsis.
+ *
+ * The bracketed default reads as a machine artefact rather than as prose, and it
+ * is the only place in the theme where punctuation is not deliberate.
+ *
+ * @return string
+ */
+function the_abyss_excerpt_more() {
+	return '&hellip;';
+}
+add_filter( 'excerpt_more', 'the_abyss_excerpt_more' );
+
+/**
+ * The newsletter signup endpoint.
+ *
+ * The site is newsletter-led, but the sending provider is still undecided (see
+ * PLAN.md, step 8c), and the choice determines the form action. So the theme
+ * ships the markup and the styling and takes the endpoint from a filter or a
+ * constant, and renders nothing at all until one is set.
+ *
+ * That is deliberate: a signup form that posts nowhere silently loses
+ * subscribers, which is worse than having no form. Set it with either
+ *
+ *   define( 'THE_ABYSS_NEWSLETTER_ACTION', 'https://...' );  // in wp-config.php
+ *
+ * or by returning a URL from the `the_abyss_newsletter_action` filter, which is
+ * the hook an ESP plugin would use.
+ *
+ * @return string Endpoint URL, or an empty string when unconfigured.
+ */
+function the_abyss_newsletter_action() {
+	$action = defined( 'THE_ABYSS_NEWSLETTER_ACTION' ) ? THE_ABYSS_NEWSLETTER_ACTION : '';
+
+	/**
+	 * Filters the newsletter form action.
+	 *
+	 * @param string $action Endpoint URL, empty when unconfigured.
+	 */
+	return esc_url_raw( (string) apply_filters( 'the_abyss_newsletter_action', $action ) );
+}
+
+/**
+ * Render the newsletter signup, or nothing when no endpoint is configured.
+ */
+function the_abyss_newsletter_form() {
+	if ( '' === the_abyss_newsletter_action() ) {
+		return;
+	}
+
+	get_template_part( 'template-parts/newsletter' );
+}
+
+/**
+ * Posts related to the current one, by shared category, newest first.
+ *
+ * Category rather than tag: categories are the site's coarse subject axis and
+ * every post has one, whereas tags are optional and would leave many posts with
+ * no related row at all.
+ *
+ * @param int $post_id Post to find relatives for.
+ * @param int $count   Maximum to return.
+ * @return WP_Post[]
+ */
+function the_abyss_related_posts( $post_id, $count = 3 ) {
+	$cats = wp_get_post_categories( $post_id );
+
+	if ( empty( $cats ) ) {
+		return array();
+	}
+
+	return get_posts(
+		array(
+			'category__in'        => $cats,
+			'post__not_in'        => array( $post_id ),
+			'posts_per_page'      => $count,
+			'ignore_sticky_posts' => true,
+			'no_found_rows'       => true,
+		)
+	);
+}

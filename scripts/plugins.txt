@@ -1,0 +1,17 @@
+# The plugin baseline, one slug per line.
+#
+# Single source of truth, read by scripts/provision.sh so the droplet and the
+# local container cannot drift. Blank lines and # comments are ignored.
+#
+# A trailing ":inactive" means install but do not activate.
+
+seo-by-rank-math                # SEO, sitemaps, and Article/Review schema
+fluent-smtp                     # transactional mail relay; without it password resets fail silently
+updraftplus                     # backups, configured to off-site storage before launch
+redirection                     # 301s, so reorganising the site does not shed links
+limit-login-attempts-reloaded   # brute-force throttling, paired with fail2ban at the OS layer
+complianz-gdpr                  # Canadian and GDPR consent
+thirstyaffiliates               # affiliate link cloaking and tracking
+
+wp-super-cache:inactive         # activated only after the site is live; caching hides changes
+google-site-kit:inactive        # inert until its Google OAuth completes against a real domain

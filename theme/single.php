@@ -29,12 +29,31 @@ get_header();
 
 				<p class="abyss-article__meta">
 					<?php
-					printf(
-						/* translators: 1: publication date, 2: author name */
-						esc_html__( 'Published %1$s by %2$s', 'the-abyss' ),
-						'<time datetime="' . esc_attr( get_the_date( DATE_W3C ) ) . '">' . esc_html( get_the_date() ) . '</time>',
-						esc_html( get_the_author() )
-					);
+					/*
+					 * The byline is dropped rather than printed empty when there
+					 * is no author. Observed 2026-08-01: a post whose author had
+					 * been removed rendered "Published August 1, 2026 by" with a
+					 * trailing "by" and nothing after it. PLAN.md requires a named
+					 * author on finance content, so a missing one is a content
+					 * problem to fix, not a string to pad.
+					 */
+					$the_abyss_author = get_the_author();
+					$the_abyss_when   = '<time datetime="' . esc_attr( get_the_date( DATE_W3C ) ) . '">' . esc_html( get_the_date() ) . '</time>';
+
+					if ( '' !== $the_abyss_author ) {
+						printf(
+							/* translators: 1: publication date, 2: author name */
+							esc_html__( 'Published %1$s by %2$s', 'the-abyss' ),
+							$the_abyss_when, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
+							esc_html( $the_abyss_author )
+						);
+					} else {
+						printf(
+							/* translators: %s: publication date */
+							esc_html__( 'Published %s', 'the-abyss' ),
+							$the_abyss_when // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
+						);
+					}
 
 					/*
 					 * PLAN.md requires an author and review date on finance
