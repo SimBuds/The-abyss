@@ -20,9 +20,31 @@ defined( 'ABSPATH' ) || exit;
 <header class="site-header">
 	<div class="site-header__inner">
 		<nav class="abyss-nav" aria-label="<?php esc_attr_e( 'Primary', 'the-abyss' ); ?>">
-			<a class="abyss-nav__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>">
-				<?php bloginfo( 'name' ); ?>
-			</a>
+			<?php
+			/*
+			 * The theme declares custom-logo support, so the Customizer offers a
+			 * logo upload. Until this call existed, setting one did nothing and
+			 * the header kept showing the site title, which reads as a bug in the
+			 * Customizer rather than a missing template call. Declaring a feature
+			 * and never rendering it is worse than not declaring it.
+			 *
+			 * Falls back to the site name as text, which is also the correct
+			 * result for a site that never uploads a logo.
+			 */
+			if ( has_custom_logo() ) :
+				?>
+				<div class="abyss-nav__brand abyss-nav__brand--logo">
+					<?php the_custom_logo(); ?>
+				</div>
+				<?php
+			else :
+				?>
+				<a class="abyss-nav__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>">
+					<?php bloginfo( 'name' ); ?>
+				</a>
+				<?php
+			endif;
+			?>
 
 			<?php
 			/*

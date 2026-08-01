@@ -7,9 +7,15 @@
 # be written from something already proven rather than from a guess. Where the
 # two differ, the difference is deliberate and commented.
 #
-# Run as root on the target host:
+# Retargeted to AWS EC2 on 2026-08-01. The stack is identical, because this was
+# written against Ubuntu rather than against a provider. What changed is the
+# platform around it: the login user, the firewall model, and swap. Those are
+# marked EC2 below.
 #
-#   # ON DROPLET
+# EC2's Ubuntu AMI logs you in as `ubuntu` and disables root SSH, so this is run
+# under sudo rather than as root directly:
+#
+#   # ON AWS SERVER
 #   sudo SITE_DOMAIN=example.com SITE_TITLE='The-abyss' \
 #        ADMIN_USER=casey ADMIN_EMAIL=you@example.com \
 #        bash scripts/provision.sh
@@ -44,7 +50,7 @@ log()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mwarning: %s\033[0m\n' "$*" >&2; }
 die()  { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
-[ "$(id -u)" -eq 0 ] || die "must run as root."
+[ "$(id -u)" -eq 0 ] || die "must run as root. On EC2: sudo bash scripts/provision.sh"
 [ -n "$SITE_DOMAIN" ] || die "SITE_DOMAIN is required, for example SITE_DOMAIN=example.com"
 [ -n "$ADMIN_USER" ]  || die "ADMIN_USER is required."
 [ -n "$ADMIN_EMAIL" ] || die "ADMIN_EMAIL is required."
@@ -235,7 +241,35 @@ done 3< "$REPO_DIR/scripts/plugins.txt"
 
 # --- hardening --------------------------------------------------------------
 
+log "Swap"
+# EC2 (and the smaller droplet sizes) ship with no swap. The architecture table
+# in PLAN.md calls for 2 GiB at low swappiness: MySQL, PHP workers, and image
+# processing sharing 2 GiB of RAM is exactly where a WordPress host OOMs, and
+# the OOM killer usually takes MySQL, which looks like data corruption rather
+# than memory pressure.
+if [ "$(swapon --show --noheadings | wc -l)" -eq 0 ] && [ ! -f /swapfile ]; then
+	fallocate -l 2G /swapfile
+	chmod 600 /swapfile
+	mkswap /swapfile >/dev/null
+	swapon /swapfile
+	grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+	# Low, not zero. Swapping is a last resort here, not routine paging.
+	sysctl -q -w vm.swappiness=10
+	grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
+else
+	echo "swap already present, leaving it alone"
+fi
+
 log "Firewall and fail2ban"
+# EC2: the security group is the real firewall and is configured in AWS, not
+# here. ufw is a second, host-level layer. It is enabled because defence in depth
+# is worth having, but note that the two can disagree silently — a port open in
+# the security group and closed here simply does not work, with nothing in either
+# console saying why. Check both when a port appears dead.
+#
+# OpenSSH is allowed before enabling, which is the difference between a firewall
+# and a lockout. On EC2 a lockout is recoverable only through SSM or a stop,
+# detach, fix, reattach cycle, so the ordering here is load-bearing.
 ufw allow OpenSSH >/dev/null
 ufw allow 'Apache Full' >/dev/null
 ufw --force enable >/dev/null
@@ -254,22 +288,35 @@ Provisioned: https://$SITE_DOMAIN  (not yet TLS)
 
 Remaining, in order, and yours to run:
 
-  1. Point DNS: an A record for $SITE_DOMAIN and www to this host's IP.
-     Confirm it resolves before step 2, or certbot burns a rate limit:
+  1. Associate an Elastic IP, if you have not already. An auto-assigned public
+     IPv4 is released on stop/start, and both DNS and TLS need a stable address.
+
+  2. Point DNS: an A record for $SITE_DOMAIN and www to that Elastic IP.
+     Confirm it resolves before step 3, or certbot burns a rate limit:
 
        dig +short $SITE_DOMAIN
 
-  2. Issue the certificate:
+  3. Open 80 and 443 in the security group. ufw is already allowing them
+     host-side, but the security group is the firewall that decides.
+
+  4. Issue the certificate:
 
        certbot --apache -d $SITE_DOMAIN -d www.$SITE_DOMAIN
 
-  3. Configure FluentSMTP with your mail provider's credentials. Until then
+  5. Confirm the instance appears in Systems Manager, then remove the port 22
+     rule from the security group. See the port 22 divergence in AGENTS.md:
+     22 is open at launch for recovery, not as the end state.
+
+  6. Configure FluentSMTP. Outbound port 25 is blocked on EC2, so this needs
+     SES or another provider over 587/465 or an HTTP API. Until it is done,
      password resets and comment notifications fail silently.
 
-  4. Configure UpdraftPlus with off-site storage, then take one backup and
-     confirm it restores. A backup nobody has restored is not a backup.
+  7. Configure EBS snapshots through Data Lifecycle Manager or AWS Backup.
+     EC2 has no automatic backups; unless you set this up, there are none.
+     Then configure UpdraftPlus to S3 as the application-level backup, take one,
+     and confirm it restores. A backup nobody has restored is not a backup.
 
-  5. Activate the page cache only once the site is live:
+  8. Activate the page cache only once the site is live:
 
        sudo -u www-data wp --path=$WP_DIR plugin activate wp-super-cache
 

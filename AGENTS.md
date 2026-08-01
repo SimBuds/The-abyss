@@ -1157,16 +1157,21 @@ who types*, not the safety boundaries — those are unchanged and restated below
 
 **The safety boundaries below did not change and are not pedagogical.**
 
-- **The droplet is a live host and stays human-only.** It serves a running
-  portfolio site. The agent does not SSH into it, configure it, or run commands
-  against it, read-only ones included. Every droplet, production-MySQL, and
-  production-WP-CLI instruction is written out for the human to run, and the
-  human shares the output. This is the tier-0 blast-radius rule, not a teaching
-  device, and the pace change above does not touch it.
+- **The production host is human-only.** As of 2026-08-01 that is the AWS EC2
+  instance; before it, the DigitalOcean droplet. The agent does not SSH into it,
+  open a Session Manager shell on it, configure it, or run commands against it,
+  read-only ones included. Every server, production-MySQL, and production-WP-CLI
+  instruction is written out for the human to run, and the human shares the
+  output. This is the tier-0 blast-radius rule, not a teaching device, and the
+  pace change above does not touch it. It is stated by role rather than by
+  provider name so that changing host does not quietly repeal it.
+- **The AWS account is human-only too.** The agent does not run `aws` CLI
+  commands, mutating or read-only. Console and CLI work is written out and run
+  by the human, for the same reason as the host.
 - **No git writes on the human's behalf**, and **no secrets at rest** — both
   unchanged, both tier 0.
-- **The final outward-facing action is the human's.** Deploying to the droplet,
-  pointing DNS, and publishing are theirs to trigger.
+- **The final outward-facing action is the human's.** Deploying to production,
+  pointing DNS, associating an Elastic IP, and publishing are theirs to trigger.
 - **Anything not reversible by a rebuild still gets confirmed first**, including
   deleting a volume, dropping a database, or overwriting a file that is not in
   Git.
@@ -1204,23 +1209,51 @@ selector or per file.
   regardless of the eventual hosting choice. (Restored 2026-07-29 after a
   label-set migration deleted it while three build-log entries and the two
   remaining local build steps still depended on it.)
-- `# IN AWS CONSOLE` and `# AWS CLI` were removed 2026-07-29 when hosting was
-  decided for the droplet. They are archived with `# ON AWS SERVER` in
-  `PLAN.md` under the deferred AWS candidate and return together if it does.
-- `# ON DROPLET` is an SSH session on the DigitalOcean droplet. This host also
-  serves a live portfolio site, so every command names it explicitly.
-- `# IN DO CONSOLE` is the DigitalOcean control panel.
+- `# IN AWS CONSOLE` is the AWS Management Console.
+- `# AWS CLI` is the `aws` command on the human's desktop terminal, run under an
+  active `aws sso login` session.
+- `# ON AWS SERVER` is an SSH or SSM session on the EC2 Ubuntu host.
 - `# IN WP-ADMIN` is the WordPress dashboard.
 - `# IN MYSQL` is the `mysql>` prompt.
 - `# WP-CLI` is the `wp` command running as the web user.
 
+**Restored 2026-08-01**, when hosting moved from the DigitalOcean droplet to AWS
+EC2. These three labels were archived together in `PLAN.md` on 2026-07-29 with an
+instruction to restore them together rather than piecemeal, and that is what this
+is. `# ON DROPLET` and `# IN DO CONSOLE` are retired in the same move, and are
+archived in `PLAN.md` under the deferred DigitalOcean candidate. This is the
+second time this label set has been migrated; both previous migrations dropped a
+label that live build-log entries still depended on, so check the existing
+entries before removing one.
+
 This is the label set the universal body under *Commands handed to the human*
 requires this project to declare.
 
-More than one environment already exists, and one of them serves a live site.
-Every server, MySQL, and WP-CLI instruction names the environment it targets,
-and WP-CLI always carries an explicit `--path`. The common way to damage a live
-WordPress site is to run a correct command in the wrong environment.
+More than one environment exists. Every server, MySQL, and WP-CLI instruction
+names the environment it targets, and WP-CLI always carries an explicit `--path`.
+The common way to damage a live WordPress site is to run a correct command in the
+wrong environment.
+
+**The EC2 host is the human's to run, exactly as the droplet was.** The pace
+change of 2026-08-01 under *Build it, do not narrate it* gave the agent the local
+container, not the production host. Nothing changes about that boundary because
+the provider changed.
+
+### The port 22 divergence
+
+Approved 2026-07-29, restored 2026-08-01 with the rest of the AWS rules.
+
+The architecture decision is SSM Session Manager with no inbound port 22, and
+that remains the end state. The EC2 launch step nevertheless opens port 22 to
+Casey's current IP, alongside the SSM instance profile. The reason is recovery,
+not convenience: an instance whose SSM agent fails to register is unreachable,
+and on a fresh host the only remedy is termination and relaunch. Port 22 makes
+that failure diagnosable. The following step confirms the instance appears in
+Systems Manager, then removes the rule.
+
+Do not "fix" the launch step to match the architecture table by closing port 22
+there. The two are reconciled deliberately, and the table describes where the
+build lands rather than how it starts.
 
 ### Verify before documenting
 
@@ -1229,7 +1262,7 @@ Confirm with appropriate read-only evidence such as:
 
 - the provider's own status view of the host
 - `ssh`, `hostnamectl`, `uname`, `lsb_release`, `free`, and `lsblk`
-- `systemctl status` on the droplet, `service <name> status` in the container
+- `systemctl status` on the EC2 host, `service <name> status` in the container
 - `curl`
 - `ls`, `stat`, and `rg`
 - WP-CLI list/get commands
@@ -1242,8 +1275,9 @@ the live evidence.
 
 Passwords, private keys, credentials, live addresses, and unnecessary provider
 resource IDs never belong in the repository. This restates tier 0 for this
-project's specific artefacts: the droplet's ID and IP address (which also
-locates the live portfolio site), DigitalOcean API tokens, database passwords,
-and the banked AWS account's identifiers (Elastic IPs, instance IDs, account
-numbers, and access keys) stay out of `PLAN.md`, `README.md`, and the build
-log.
+project's specific artefacts: the AWS account number, instance IDs, AMI IDs,
+Elastic IPs, access keys, the AWS access portal URL, database passwords, and any
+remaining DigitalOcean droplet ID, IP address, or API token all stay out of
+`PLAN.md`, `README.md`, and the build log. Region and instance type are
+architecture and may be recorded; anything that identifies a specific resource
+or account may not.

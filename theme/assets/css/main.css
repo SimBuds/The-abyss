@@ -376,9 +376,16 @@ img.grayscale {
    overflow floor at a 308px viewport.
    --------------------------------------------------------------------------- */
 
+/* auto-fill, not auto-fit. Changed 2026-08-01 after a related-posts row with a
+   single card rendered that card at the full 960px column, with its 3:2 thumbnail
+   420px tall. auto-fit collapses the empty tracks and lets the survivors absorb
+   the space, so cell width depended on how many posts happened to match. auto-fill
+   keeps the empty tracks, so a cell is the same width whether the row holds one
+   card or three. That is what "equal-width cells" has to mean to be a grid at
+   all. */
 .abyss-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 	gap: var(--abyss-space-6);
 	margin: 0;
 	padding: 0;
@@ -1524,6 +1531,105 @@ textarea.abyss-input {
 	padding: 0;
 }
 
+/* ---------------------------------------------------------------------------
+   Post footer sections: author, related, newsletter.
+
+   All three are separated from the article and from each other by the 2px rule,
+   which is the design's instruction for dividing major sections. None of them
+   introduces a new component: the author box and the newsletter reuse the type
+   and field families, and related posts reuse the card grid unchanged.
+   --------------------------------------------------------------------------- */
+
+.abyss-author,
+.abyss-related,
+.abyss-newsletter {
+	margin-top: var(--abyss-space-8);
+	padding-top: var(--abyss-space-6);
+	border-top: 2px solid var(--abyss-color-divider);
+}
+
+.abyss-author {
+	display: flex;
+	gap: var(--abyss-space-4);
+	align-items: flex-start;
+}
+
+/* flex: none stops the avatar being squeezed by a long bio at narrow widths. */
+.abyss-author__media {
+	flex: none;
+}
+
+.abyss-author__avatar {
+	display: block;
+	width: 64px;
+	height: 64px;
+	border-radius: var(--abyss-radius-md);
+	filter: grayscale(1);
+}
+
+.abyss-author__kicker {
+	margin: 0;
+	font-size: 10px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--abyss-color-accent);
+}
+
+.abyss-author__name {
+	margin: var(--abyss-space-1) 0 0;
+	font-family: var(--abyss-font-heading);
+	font-weight: var(--abyss-font-heading-weight);
+	font-size: 17px;
+	line-height: 1.2;
+	letter-spacing: -0.015em;
+}
+
+/* Parent-scoped, per the theme.json elements.link specificity note above. */
+.abyss-author .abyss-author__name a {
+	color: var(--abyss-color-text);
+	text-decoration: none;
+}
+
+.abyss-author .abyss-author__name a:hover {
+	color: var(--abyss-color-accent-700);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.abyss-author__bio {
+	margin: var(--abyss-space-2) 0 0;
+	font-size: 13px;
+	opacity: 0.8;
+	max-width: var(--abyss-prose-width);
+}
+
+.abyss-related__title,
+.abyss-newsletter__title {
+	font-size: 17px;
+	margin-bottom: var(--abyss-space-4);
+}
+
+.abyss-newsletter__body {
+	margin: 0 0 var(--abyss-space-4);
+	font-size: 13px;
+	opacity: 0.8;
+	max-width: var(--abyss-prose-width);
+}
+
+/* Wraps rather than shrinking the input below a usable width. align-items: end
+   lines the button's baseline up with the input rather than with the label. */
+.abyss-newsletter__form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--abyss-space-2);
+	align-items: flex-end;
+}
+
+.abyss-newsletter__form .abyss-field {
+	flex: 1 1 240px;
+	min-width: 0;
+}
+
 .skip-link {
 	position: absolute;
 	left: -9999px;
@@ -1558,4 +1664,42 @@ textarea.abyss-input {
 		transition-duration: 0.01ms !important;
 		scroll-behavior: auto !important;
 	}
+}
+
+/* Footer navigation. Flush left above the copyright line, per the design's
+   do-list, and wrapping rather than scrolling at narrow widths. */
+.abyss-footer-nav ul {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--abyss-space-4);
+	list-style: none;
+	margin: 0 0 var(--abyss-space-4);
+	padding: 0;
+	font-size: 13px;
+}
+
+.abyss-footer-nav a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.abyss-footer-nav a:hover {
+	color: var(--abyss-color-accent-700);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+/* The logo variant of the brand. The nav brand rule sets a font size that means
+   nothing for an image, and the image needs the same auto margin to keep the
+   menu pushed to the far edge. */
+.abyss-nav .abyss-nav__brand--logo {
+	display: flex;
+	align-items: center;
+	margin-inline-end: auto;
+}
+
+.abyss-nav .abyss-nav__brand--logo img {
+	display: block;
+	max-height: 48px;
+	width: auto;
 }

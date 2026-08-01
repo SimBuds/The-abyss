@@ -248,12 +248,48 @@ font stack, or a pixel value that a token already carries.
 - `README.md` still describes an AWS build under *At a glance*. It is corrected
   after the local environment is proven, not before.
 
-## Hosting: a dedicated DigitalOcean droplet
+## Hosting: AWS EC2
 
-DigitalOcean decided 2026-07-29, ahead of the Step 8 checkpoint the roadmap
-planned. AWS is demoted to the deferred candidate below with its banked work
-intact. The criteria below are kept as the record Step 8 would have used, and
-they govern any future re-decision.
+**Decided 2026-08-01, reversing the 2026-07-29 decision for DigitalOcean.** AWS
+EC2 is the host. DigitalOcean is demoted to the deferred candidate, and the
+droplet section that follows is kept as the record rather than deleted.
+
+Casey's stated framing: this is the last environment move, so the transfer and
+its testing are the remaining work once the theme is finished. The theme was
+confirmed finished and running the same day, which was the condition set on
+starting server work.
+
+**What the reversal costs, stated plainly rather than smoothed over.** The
+2026-07-31 revision already withdrew the original reason for choosing
+DigitalOcean: the droplet stopped being free the moment a dedicated one was
+created for this site, and the decision was re-justified on operational
+simplicity instead. Moving to EC2 trades that simplicity for a more capable
+platform and reuses the AWS identity work already banked below. It also means
+the two remaining DigitalOcean artefacts, the droplet itself and its billing,
+are Casey's to shut down; nothing in this plan does that automatically.
+
+**What transfers unchanged.** Everything the container taught. Ubuntu 24.04,
+Apache with php-fpm, MySQL, WP-CLI, and the vhost are identical on EC2, and
+`scripts/provision.sh` was written against Ubuntu rather than against
+DigitalOcean. What changes is the surrounding platform, not the stack: the login
+user, the firewall model, the metadata service, the backup mechanism, and the
+mail path.
+
+**What does not relax.** An EC2 instance is a public internet-facing machine from
+the hour it boots. SSH hardening, a restrictive security group, and no password
+authentication are day-one work, not go-live work.
+
+### Deferred candidate: DigitalOcean droplet
+
+Retained from when this was the settled plan, 2026-07-29 to 2026-08-01. A
+dedicated droplet was created for this site on 2026-07-31 and never provisioned.
+It and its billing are Casey's to shut down.
+
+Archived command labels, to restore together rather than piecemeal if
+DigitalOcean is ever chosen again: `# ON DROPLET` is an SSH session on the
+droplet, and `# IN DO CONSOLE` is the DigitalOcean control panel.
+
+The original reasoning follows.
 
 **Revised 2026-07-31: The-abyss gets its own droplet.** A second droplet was
 created for this site, so it no longer shares a host with the live portfolio.
@@ -294,9 +330,9 @@ they govern any future re-decision:
 - Whether a managed database is wanted later.
 - Time to a working host from a standing start.
 
-### Deferred candidate: AWS EC2
+### The chosen architecture: AWS EC2
 
-Fuller reasoning, retained from when this was the settled plan.
+Promoted back from deferred candidate 2026-08-01. This is now the build target.
 
 | Decision | Reason |
 |---|---|
@@ -348,26 +384,33 @@ chosen at Step 8:
 Not done: the Identity Center admin group, user, permission set, and assignment.
 Root is still the only usable identity.
 
-Archived from `AGENTS.md` on 2026-07-29 when hosting was decided for the
-droplet. If AWS is ever chosen instead, restore all of the following to the
-project rules together, not just the parts that seem relevant at the time.
+**Restored to `AGENTS.md` on 2026-08-01**, all together as the archive
+instructed: the three command labels (`# IN AWS CONSOLE`, `# AWS CLI`,
+`# ON AWS SERVER`) and the port 22 divergence. They are no longer duplicated
+here; `AGENTS.md` is now their home again.
 
-Command labels: `# IN AWS CONSOLE` is the AWS Management Console. `# AWS CLI`
-is the `aws` command on the human's desktop terminal, run under an active
-`aws sso login` session. `# ON AWS SERVER` is an SSH session on the EC2
-Ubuntu host.
+### What EC2 changes that the container did not teach
 
-The port 22 divergence, approved 2026-07-29. The architecture decision is SSM
-Session Manager with no inbound port 22, and that remains the end state. The
-EC2 launch step nevertheless opens port 22 to Casey's current IP, alongside
-the SSM instance profile. The reason is recovery, not convenience. An
-instance whose SSM agent fails to register is unreachable, and on a fresh
-host the only remedy is termination and relaunch. Port 22 makes that failure
-diagnosable. The following step confirms the instance appears in Systems
-Manager, then removes the rule. Do not "fix" the launch step to match the
-architecture table by closing port 22 there. The two are reconciled
-deliberately, and the table describes where the build lands rather than how
-it starts.
+The stack transfers unchanged. The platform around it does not, and these are the
+five places `scripts/provision.sh` and `scripts/inventory.sh` had to diverge from
+their droplet versions:
+
+| Concern | Droplet | EC2 |
+|---|---|---|
+| Login | `root` directly | `ubuntu` with `sudo`; root SSH disabled in the AMI |
+| Firewall | `ufw` plus an optional DO cloud firewall | Security group is the real control; `ufw` is a second layer that can lock you out |
+| Metadata | Unauthenticated `169.254.169.254` | IMDSv2, requiring a `PUT` for a token first |
+| Backups | DigitalOcean automatic backups | EBS snapshots, via Data Lifecycle Manager or AWS Backup |
+| Stable address | Reserved IP | Elastic IP, and the architecture table already requires one from launch |
+
+Two carried over unchanged, and both still bite:
+
+- **Outbound port 25 is blocked.** True on both platforms. It is why the
+  architecture table specifies Amazon SES, and why the newsletter provider
+  question in step 8c is a real decision rather than a plugin choice.
+- **No swap by default.** The architecture table calls for a 2 GiB swap file with
+  low `vm.swappiness`, because MySQL, PHP workers, and image processing sharing
+  2 GiB is exactly where a WordPress host runs out of memory.
 
 ### What the Step 9 inventory must record
 
@@ -485,10 +528,15 @@ Phase B, the theme:
 
 Phase C, hosting:
 
-- [x] **Step 8, hosting decided: DigitalOcean.** Decided ahead of schedule on
-      2026-07-29, and revised 2026-07-31 when a dedicated droplet was created
-      for this site. Both the decision and what the revision changed are under
-      *Hosting* above.
+- [x] **Step 8, hosting decided: AWS EC2.** Decided 2026-08-01, reversing the
+      2026-07-29 decision for DigitalOcean and the 2026-07-31 revision to a
+      dedicated droplet. The AWS identity work banked in July is reused rather
+      than redone. Under *Hosting* above, along with the table of what actually
+      differs between the two platforms and what the reversal costs.
+
+      Consequence not to lose: the dedicated droplet created 2026-07-31 was
+      never provisioned, and it and its billing are Casey's to shut down.
+      Nothing in this plan does that.
 - [x] **Step 8b, WP-CLI and the plugin baseline, 2026-08-01.** WP-CLI added to
       the image from the official phar, so the plugin set is a replayable command
       rather than a click path, and the same two lines work on the droplet.
@@ -501,6 +549,37 @@ Phase C, hosting:
       nothing until its Google OAuth completes against a real domain. Rejected:
       Jetpack and Wordfence, both too heavy for the droplet, and any page
       builder, since the theme is custom.
+- [x] **Step 7e, the theme finished, 2026-08-01.** An audit for
+      declared-but-unused features found six gaps, all closed and all verified by
+      screenshot:
+      1. `comment-reply` was never enqueued. Functional, not cosmetic: with
+         threading on, the Reply link jumped to the form anchor and the reply was
+         filed as a new top-level comment.
+      2. `custom-logo` support was declared but `the_custom_logo()` was never
+         called, so uploading a logo in the Customizer did nothing.
+      3. The `footer` menu location was registered at step 6 and never rendered.
+         The privacy policy and affiliate disclosure links belong there, and both
+         are live-site requirements.
+      4. No author box, despite a named author on finance content being a
+         requirement and already being emitted into `Article` schema.
+      5. No related posts.
+      6. No newsletter signup, on a site whose plan is newsletter-led.
+
+      New partials under `theme/template-parts/`: `newsletter.php`,
+      `author-box.php`, `related.php`. Each renders nothing when it has nothing
+      to show, so a new site does not display three empty headings.
+
+      The newsletter form takes its endpoint from the `the_abyss_newsletter_action`
+      filter or a `THE_ABYSS_NEWSLETTER_ACTION` constant and **renders nothing
+      until one is set**, because a form posting nowhere loses subscribers
+      silently. It posts straight to the provider, so subscriber addresses never
+      enter this database: one fewer store to secure, back up, and answer for
+      under CASL and GDPR.
+
+      Also fixed here: `.abyss-grid` moved from `auto-fit` to `auto-fill`. With
+      `auto-fit`, a related row holding one post collapsed the empty tracks and
+      stretched that card across the full 960px column with a 420px thumbnail.
+      Cell width no longer depends on how many posts happen to match.
 - [ ] **Step 8c, email and newsletter delivery. Blocked on a decision, not on
       work.** The site is blog-led with a newsletter, so the list is the asset.
       DigitalOcean blocks outbound port 25 on droplets by default, and bulk mail
@@ -534,9 +613,20 @@ Phase C, hosting:
       **Untested end to end.** Bash syntax checks clean and the plugin-list
       parser was run standalone against the real file, matching the local
       install exactly. Nothing has executed it on a host.
-- [ ] Step 9, read-only inventory of the dedicated droplet. Establishes the
-      starting point, above all what the chosen image already installed.
-      Nothing is installed or changed in this step.
+- [ ] **Step 8e, AWS identity.** The banked work stopped at "root is still the
+      only usable identity". Before an instance is launched: create the Identity
+      Center admin group, user, permission set, and assignment, then stop using
+      root. Launching an instance as root is the thing the identity work exists
+      to avoid.
+- [ ] **Step 9a, launch the instance.** Per the architecture table above:
+      `t4g.small`, `us-east-1`, Ubuntu Server 24.04 LTS ARM64, 30 GiB encrypted
+      `gp3`, Elastic IP from launch, SSM instance profile attached, and port 22
+      open to Casey's current IP only. That last one is the deliberate divergence
+      in `AGENTS.md`; it is recovery, not the end state.
+- [ ] **Step 9b, read-only inventory.** `scripts/inventory.sh`, retargeted to
+      EC2 on 2026-08-01: IMDSv2 token handling, an SSM agent check, and an AWS
+      console list at the end. Establishes the starting point and confirms the
+      launch matched the table. Nothing is installed or changed in this step.
 
       `scripts/inventory.sh` covers every question in *What the Step 9 inventory
       must record* and is written to be audited before it runs: every

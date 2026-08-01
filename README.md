@@ -31,11 +31,16 @@ docker compose up -d --build
 ssh -p 2222 root@localhost
 ```
 
-**Hosting is decided: a dedicated DigitalOcean droplet**, created for this site
-rather than shared with anything else. A read-only inventory comes first, chiefly
-to establish what the chosen image already installed. AWS is a deferred candidate
-with its completed work banked. Both are in
-[`PLAN.md`](PLAN.md#hosting-a-dedicated-digitalocean-droplet).
+**Hosting is AWS EC2**, decided 2026-08-01 and reversing an earlier decision for
+DigitalOcean, which is now the deferred candidate with its reasoning kept. The
+stack transfers unchanged, because it was built against Ubuntu rather than
+against a provider; what changes is the platform around it — the login user, the
+firewall model, the metadata service, backups, and mail. Both candidates, and a
+table of exactly what differs, are in [`PLAN.md`](PLAN.md#hosting-aws-ec2).
+
+Two scripts carry the transfer: `scripts/provision.sh` turns a fresh Ubuntu host
+into this stack, and `scripts/inventory.sh` is a strictly read-only survey to run
+before it.
 
 The theme is built on the Modernist design system, whose token sheet in
 `design/_ds/` is the locked source of truth for every colour, font, and spacing
@@ -1082,3 +1087,68 @@ action that belongs to the human. The script prints the remaining steps instead.
 *Why one `while read` on file descriptor 3?* `wp` inherits stdin. A plain
 `while read; done < file` lets the first `wp plugin install` swallow the rest of
 the list, so one plugin installs and the others are silently skipped.
+
+#### Step 7e — finishing the theme ✅
+
+**Goal:** audit for features the theme declares but never renders, then close
+everything the site needs before it can launch.
+
+**Why it matters:** a declared feature that does nothing is worse than an absent
+one, because it looks available in wp-admin and fails silently. Three of the six
+gaps below were exactly that shape.
+
+**Commands:**
+
+```bash
+# ON HOST — the audit that found them
+for t in custom-logo the_custom_logo comment-reply "'footer'" wp_nav_menu; do
+  printf '%-18s functions:%s header:%s footer:%s\n' "$t" \
+    "$(grep -c "$t" theme/functions.php)" \
+    "$(grep -c "$t" theme/header.php)" "$(grep -c "$t" theme/footer.php)"
+done
+
+# IN CONTAINER
+for f in theme/*.php theme/template-parts/*.php; do php -l "$f"; done
+```
+
+**Verify:** all templates lint clean; CSS braces balance at 188/188; no undefined
+`--abyss-*` reference. Screenshotted at 1100px and 380px: author box, related
+posts, newsletter form, and the footer menu all render, and all four hold at
+narrow width with no overflow.
+
+Six gaps closed:
+
+1. `comment-reply` never enqueued — threaded replies were filed as new top-level
+   comments.
+2. `custom-logo` declared, `the_custom_logo()` never called.
+3. `footer` menu location registered since step 6, never rendered.
+4. No author box, though `Article` schema already claimed an author.
+5. No related posts.
+6. No newsletter signup, on a newsletter-led site.
+
+One defect found by screenshot and fixed: `.abyss-grid` used `auto-fit`, so a
+related row with a single post collapsed the empty tracks and stretched that one
+card across the whole 960px column with a 420px-tall thumbnail. Now `auto-fill`,
+so a cell is the same width whether the row holds one card or three.
+
+**Q&A:**
+
+*Why does the newsletter form render nothing until an endpoint is configured?*
+Because a signup form that posts nowhere loses subscribers without any error.
+The provider is still undecided (step 8c), so the theme ships the markup and
+takes the endpoint from the `the_abyss_newsletter_action` filter or a
+`THE_ABYSS_NEWSLETTER_ACTION` constant, and stays silent until one exists.
+
+*Why does the form post directly to the provider rather than through WordPress?*
+Subscriber email addresses then never enter this database. That is one fewer
+store to secure, to back up, and to answer for under CASL and GDPR.
+
+*Why related posts by category rather than by tag?* Every post has a category and
+tags are optional, so tags would leave many posts with no related row at all.
+
+*Why did `wp config set` fail when adding the newsletter constant?* The
+container's `wp-config.php` was written by hand at step 4 and has no "That's all,
+stop editing" anchor for WP-CLI to insert before. Not an issue for the droplet:
+`provision.sh` creates that file with `wp config create`, which emits the anchor.
+Verified locally through the filter instead, which is the path an ESP plugin
+would use anyway.

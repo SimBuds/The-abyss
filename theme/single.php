@@ -142,6 +142,18 @@ get_header();
 
 		<?php
 		/*
+		 * Order after the article is deliberate: who wrote it, then how to keep
+		 * reading here, then how to keep hearing from the site. Each renders
+		 * nothing when it has nothing to show, so a new site with one post and no
+		 * author bio shows none of the three rather than three empty headings.
+		 */
+		get_template_part( 'template-parts/author-box' );
+		get_template_part( 'template-parts/related' );
+		the_abyss_newsletter_form();
+		?>
+
+		<?php
+		/*
 		 * Guarded, because comments_template() would otherwise load and render
 		 * the form on posts where the discussion was never opened. The condition
 		 * matches WordPress's own: show it when comments are open, or when the
