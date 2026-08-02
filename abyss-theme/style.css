@@ -343,6 +343,24 @@ a:hover { color: var(--color-accent); }
   color: var(--color-neutral-800);
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
 }
+/* The per-article disclosure, prepended above the first paragraph by
+   inc/compliance.php. Deliberately NOT .disclose: that class is the site-wide
+   footer bar, whose padding lives on an inner .disclose__in element this markup
+   does not have, so reusing it produced a tinted block with no spacing that ran
+   straight into the article's first sentence.
+
+   Marked with the accent rule rather than a tinted panel, so it reads as
+   editorial apparatus rather than as an ad. It has to be noticed before the
+   reader acts on a link, which is the whole reason it sits here rather than
+   only in the footer. */
+.art-disclose {
+  margin: 0 0 28px;
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--color-accent);
+}
+.art-disclose p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); }
+.art-disclose strong { color: var(--color-accent); }
+
 .disclose__badge { font-family: var(--font-heading); font-weight: 700; font-size: 14px; color: var(--color-accent); }
 
 /* ---------------------------------------------------------------

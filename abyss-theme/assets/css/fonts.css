@@ -1,0 +1,86 @@
+/**
+ * Self-hosted webfonts.
+ *
+ * Added 2026-08-01, replacing a stylesheet fetched from the Google Fonts CDN.
+ * PLAN.md lists "self-hosted fonts and no unnecessary third-party font requests"
+ * as a live-site requirement, and the CDN broke it three ways:
+ *
+ * 1. Compliance. The endpoint receives the visitor's IP address on every page
+ *    view. German courts have held that this needs consent, and this site ships
+ *    Complianz precisely because consent is being taken seriously.
+ * 2. Performance. It costs a DNS lookup, a TCP connection, and a TLS handshake
+ *    to a third-party origin before the first byte of CSS, and that CSS is
+ *    render-blocking. Shared caching across sites has not been a thing since
+ *    browsers partitioned their HTTP caches.
+ * 3. Reliability. A font that only renders when someone else's CDN is reachable
+ *    is a dependency nobody chose.
+ *
+ * Both families are variable fonts, so one file per style covers the whole
+ * weight range rather than one file per weight. Six files, about 226KB total,
+ * and the browser downloads only the subsets it needs: latin-ext is a separate
+ * face with its own unicode-range, so an English page never fetches it.
+ *
+ * font-display: swap means text paints immediately in the fallback and swaps
+ * when the webfont arrives. The alternative is invisible text while the font
+ * loads, which is worse on a slow connection than a brief style shift.
+ */
+
+/* Plus Jakarta Sans normal, latin-ext */
+@font-face {
+	font-family: 'Plus Jakarta Sans';
+	font-style: normal;
+	font-weight: 200 800;
+	font-display: swap;
+	src: url('fonts/plus-jakarta-sans-normal-latin-ext.woff2') format('woff2');
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Plus Jakarta Sans normal, latin */
+@font-face {
+	font-family: 'Plus Jakarta Sans';
+	font-style: normal;
+	font-weight: 200 800;
+	font-display: swap;
+	src: url('fonts/plus-jakarta-sans-normal-latin.woff2') format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Source Sans 3 italic, latin-ext */
+@font-face {
+	font-family: 'Source Sans 3';
+	font-style: italic;
+	font-weight: 200 900;
+	font-display: swap;
+	src: url('fonts/source-sans-3-italic-latin-ext.woff2') format('woff2');
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Source Sans 3 italic, latin */
+@font-face {
+	font-family: 'Source Sans 3';
+	font-style: italic;
+	font-weight: 200 900;
+	font-display: swap;
+	src: url('fonts/source-sans-3-italic-latin.woff2') format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Source Sans 3 normal, latin-ext */
+@font-face {
+	font-family: 'Source Sans 3';
+	font-style: normal;
+	font-weight: 200 900;
+	font-display: swap;
+	src: url('fonts/source-sans-3-normal-latin-ext.woff2') format('woff2');
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Source Sans 3 normal, latin */
+@font-face {
+	font-family: 'Source Sans 3';
+	font-style: normal;
+	font-weight: 200 900;
+	font-display: swap;
+	src: url('fonts/source-sans-3-normal-latin.woff2') format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

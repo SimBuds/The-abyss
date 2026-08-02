@@ -272,38 +272,34 @@ is left open and recorded here.
 - `README.md` still describes an AWS build under *At a glance*. It is corrected
   after the local environment is proven, not before.
 
-## Hosting: AWS EC2
+## Hosting: undecided, parked 2026-08-01
 
-**Decided 2026-08-01, reversing the 2026-07-29 decision for DigitalOcean.** AWS
-EC2 is the host. DigitalOcean is demoted to the deferred candidate, and the
-droplet section that follows is kept as the record rather than deleted.
+**Deliberately open.** Hosting changed three times in four days — AWS, then a
+DigitalOcean droplet, then AWS EC2, then back — and each change cost real
+documentation surgery while the site itself gained nothing. It is parked until
+Casey decides, along with the domain. Local Docker remains the working
+environment and is unaffected by the choice.
 
-Casey's stated framing: this is the last environment move, so the transfer and
-its testing are the remaining work once the theme is finished. The theme was
-confirmed finished and running the same day, which was the condition set on
-starting server work.
+The candidates, with what each actually implies:
 
-**What the reversal costs, stated plainly rather than smoothed over.** The
-2026-07-31 revision already withdrew the original reason for choosing
-DigitalOcean: the droplet stopped being free the moment a dedicated one was
-created for this site, and the decision was re-justified on operational
-simplicity instead. Moving to EC2 trades that simplicity for a more capable
-platform and reuses the AWS identity work already banked below. It also means
-the two remaining DigitalOcean artefacts, the droplet itself and its billing,
-are Casey's to shut down; nothing in this plan does that automatically.
+| Candidate | What it means | Main cost |
+|---|---|---|
+| **Docker on the existing portfolio droplet** | Deploy `compose.yaml` behind the host's existing web server, proxied from `127.0.0.1:8080`. Separate filesystem, MySQL, and PHP from the portfolio. | The host's web server must reverse-proxy and terminate TLS. Memory is the constraint on a small droplet. Makes `provision.sh` largely redundant. |
+| **Direct install on the portfolio droplet** | A second vhost and database on the live host. | Reinstates the shared-host constraint: ordinary provisioning commands become capable of breaking a live site. `provision.sh` must **not** be run there as written. |
+| **A dedicated host** (droplet or EC2) | What `provision.sh` was built and tested for. | A new monthly line item. |
 
-**What transfers unchanged.** Everything the container taught. Ubuntu 24.04,
-Apache with php-fpm, MySQL, WP-CLI, and the vhost are identical on EC2, and
-`scripts/provision.sh` was written against Ubuntu rather than against
-DigitalOcean. What changes is the surrounding platform, not the stack: the login
-user, the firewall model, the metadata service, the backup mechanism, and the
-mail path.
+**The deployment artefact differs by candidate**, which is the part worth
+knowing before choosing: a dedicated host uses `scripts/provision.sh`, proven end
+to end in a container on 2026-08-01. Docker-on-droplet uses `compose.yaml`
+instead, and would need production adjustments — no SSH port published, no
+bind-mounted repo, a real `wp-config.php`, and named volumes for backups.
 
-**What does not relax.** An EC2 instance is a public internet-facing machine from
-the hour it boots. SSH hardening, a restrictive security group, and no password
-authentication are day-one work, not go-live work.
+**Lesson recorded rather than repeated:** provider-specific rules are currently
+threaded through `AGENTS.md`, `PLAN.md`, and both scripts, so each flip touches
+all four. If hosting changes again, consolidate them into one named block first
+so the next change is a single edit.
 
-### Deferred candidate: DigitalOcean droplet
+### Deferred candidate: DigitalOcean droplet### Deferred candidate: DigitalOcean droplet
 
 Retained from when this was the settled plan, 2026-07-29 to 2026-08-01. A
 dedicated droplet was created for this site on 2026-07-31 and never provisioned.

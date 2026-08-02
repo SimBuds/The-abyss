@@ -64,11 +64,20 @@ add_action( 'after_setup_theme', 'abyss_content_width', 0 );
  * ---------------------------------------------------------------------- */
 
 function abyss_assets() {
+	/*
+	 * Self-hosted since 2026-08-01. See assets/css/fonts.css for why the Google
+	 * Fonts CDN was removed; the short version is that PLAN.md requires
+	 * self-hosted fonts, and the CDN sees every visitor's IP address.
+	 *
+	 * Loaded as a dependency of the main stylesheet rather than alongside it, so
+	 * the @font-face rules are always parsed before anything references the
+	 * family.
+	 */
 	wp_enqueue_style(
 		'abyss-fonts',
-		'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap',
+		get_template_directory_uri() . '/assets/css/fonts.css',
 		array(),
-		null
+		abyss_asset_version( 'assets/css/fonts.css' )
 	);
 
 	wp_enqueue_style( 'abyss', get_stylesheet_uri(), array( 'abyss-fonts' ), abyss_asset_version( 'style.css' ) );

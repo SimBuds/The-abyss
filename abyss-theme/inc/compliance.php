@@ -195,7 +195,7 @@ function abyss_compliance_affiliate_disclosure( $content ) {
 	}
 
 	$notice = sprintf(
-		'<aside class="disclose disclose--inline"><p><strong>%1$s</strong> %2$s</p></aside>',
+		'<aside class="art-disclose"><p><strong>%1$s</strong> %2$s</p></aside>',
 		esc_html__( 'Disclosure:', 'abyss' ),
 		esc_html__( 'Some links in this article are affiliate links. If you buy through one, this site may earn a commission at no extra cost to you. Commissions never determine which products are covered or what is said about them.', 'abyss' )
 	);

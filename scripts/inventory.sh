@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 #
-# Step 9: read-only inventory of the target EC2 instance.
+# Step 9: read-only inventory of the target droplet.
 #
-# Retargeted 2026-08-01 from DigitalOcean to AWS EC2. Three things changed:
-# the metadata service (IMDSv2 needs a token), the SSM agent check (new, because
-# the architecture depends on it), and the manual list at the end.
+# Retargeted back to DigitalOcean 2026-08-01, the same day it was pointed at EC2.
+#
+# READ THIS BEFORE RUNNING IT ANYWHERE: the intended target is now a droplet that
+# already serves a live portfolio site. Every command in this file is a read, and
+# that is the whole contract — but it is worth re-reading the audit below rather
+# than trusting the claim, because the cost of being wrong is somebody else's
+# site.
 #
 # Establishes the starting point before anything is installed. Nothing in this
 # file writes, installs, enables, disables, or restarts anything — every command
@@ -38,25 +42,15 @@ echo "CPU:    $(nproc) vCPU"
 free -h
 echo
 df -h /
-# EC2 instance metadata. IMDSv2 requires a token from a PUT before anything can
-# be read, and newer AMIs disable the unauthenticated v1 path entirely, so a
-# plain GET against 169.254.169.254 silently returns nothing. Asking for the
-# token first works on both.
+# DigitalOcean metadata. Unauthenticated, unlike EC2's IMDSv2, so a plain GET
+# works. Fails quietly on anything that is not a droplet.
 if have curl; then
 	echo
-	IMDS_TOKEN="$(curl -s --max-time 2 -X PUT \
-		-H 'X-aws-ec2-metadata-token-ttl-seconds: 60' \
-		http://169.254.169.254/latest/api/token 2>/dev/null || true)"
-
-	if [ -n "$IMDS_TOKEN" ]; then
-		for field in instance-id instance-type placement/region placement/availability-zone ami-id; do
-			printf '  %-28s %s\n' "$field" \
-				"$(curl -s --max-time 2 -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
-					"http://169.254.169.254/latest/meta-data/$field" 2>/dev/null)"
-		done
-	else
-		echo "  (EC2 metadata service unreachable — not an EC2 instance, or IMDS is disabled)"
-	fi
+	for field in region size_slug hostname; do
+		printf '  %-14s %s\n' "$field" \
+			"$(curl -s --max-time 2 "http://169.254.169.254/metadata/v1/$field" 2>/dev/null)"
+	done
+	echo
 fi
 
 hr "Ubuntu version"
@@ -129,37 +123,44 @@ hr "Swap"
 # will OOM under a build without it.
 swapon --show 2>/dev/null || echo "  no swap configured"
 
-hr "SSM agent"
-# The architecture decision is SSM Session Manager with no inbound port 22. If
-# the agent is not running and registered, that end state is not reachable yet
-# and port 22 is still the only way in. See the port 22 divergence in AGENTS.md.
-if systemctl is-active --quiet snap.amazon-ssm-agent.amazon-ssm-agent 2>/dev/null \
-   || systemctl is-active --quiet amazon-ssm-agent 2>/dev/null; then
-	echo "  running"
+hr "What else is already on this host"
+# The load-bearing question now. This droplet serves a live portfolio site, so
+# the inventory is no longer "what did the image install" but "what is already
+# here that must not be disturbed".
+echo "Enabled vhosts:"
+ls -1 /etc/apache2/sites-enabled/ 2>/dev/null || echo "  (no apache2)"
+ls -1 /etc/nginx/sites-enabled/ 2>/dev/null || echo "  (no nginx)"
+echo
+echo "Document roots in use:"
+grep -rhoP '(DocumentRoot|root)\s+\K\S+' /etc/apache2/sites-enabled/ /etc/nginx/sites-enabled/ 2>/dev/null | sort -u || true
+echo
+echo "Databases present:"
+mysql -N -B -e 'SHOW DATABASES;' 2>/dev/null || echo "  (cannot read; needs root or no MySQL)"
+echo
+echo "Existing TLS certificates:"
+certbot certificates 2>/dev/null | grep -E 'Certificate Name|Domains|Expiry' || echo "  (none, or certbot absent)"
+echo
+echo "Docker:"
+if have docker; then
+	docker --version
+	docker ps --format '  {{.Names}}  {{.Image}}  {{.Status}}' 2>/dev/null || echo "  (cannot list; needs group membership)"
 else
-	echo "  NOT running — the instance will not appear in Systems Manager"
+	echo "  not installed"
 fi
 
 hr "Cannot be answered from the shell"
 cat <<'EOF'
-  Check these in the AWS console and record them by hand:
+  Check these in the DigitalOcean control panel and record them by hand:
 
-    - Security group: which ports are open, and to which sources. This is the
-      real firewall on EC2. ufw above is a second layer, and the two can
-      disagree without either reporting a problem.
-    - Elastic IP: whether one is associated. An auto-assigned public IPv4 is
-      released on stop/start, and both DNS and TLS need a stable address.
-    - EBS snapshots: whether Data Lifecycle Manager or AWS Backup is configured.
-      EC2 has no equivalent of the droplet's automatic backups, so unless one of
-      those was set up, there are none.
-    - IAM instance profile: whether the SSM role is attached, and whether an S3
-      role exists for off-instance backups.
-    - SES: whether the account is still in the sandbox, which only permits mail
-      to verified addresses. Outbound port 25 is blocked on EC2 regardless, so
-      SES or another provider is required, not optional. This is the newsletter
-      decision in PLAN.md step 8c.
-    - Billing: confirm the expected ~$18/month baseline and that nothing else is
-      running in the account.
+    - Automatic backups: enabled or not, and the schedule. This matters more
+      than usual now: the portfolio site is on the same disk.
+    - Cloud firewall: whether one is attached and which ports it allows. It is
+      separate from ufw above and either can block without the other saying so.
+    - Reserved IP: whether one is assigned, since DNS should point at that.
+    - Whether outbound SMTP (port 25) is blocked. It is by default. This decides
+      the newsletter provider question in PLAN.md step 8c.
+    - Droplet plan and monthly cost, and whether a resize is needed to run a
+      second site alongside the portfolio.
 EOF
 
 echo
