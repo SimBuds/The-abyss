@@ -145,6 +145,16 @@ a:hover { color: var(--color-accent); }
 .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-100); }
 .btn--small { padding: 9px 16px; font-size: 14px; }
 .btn--block { display: flex; width: 100%; }
+/* A disabled button that still looks pressable is a promise the page cannot
+   keep. Kept above 3:1 against the card behind it so the boundary stays
+   visible per WCAG 1.4.11 rather than fading into decoration. */
+.btn:disabled,
+.btn[disabled] {
+  background: transparent; border-color: var(--color-neutral-400);
+  color: var(--color-neutral-700); cursor: not-allowed;
+}
+.btn:disabled:hover,
+.btn[disabled]:hover { background: transparent; border-color: var(--color-neutral-400); }
 
 .input {
   width: 100%;
@@ -154,6 +164,10 @@ a:hover { color: var(--color-accent); }
   background: var(--color-card); color: var(--color-text);
 }
 .input::placeholder { color: var(--color-neutral-700); }
+/* The unwired newsletter state. A <p>, not a disabled <input>: there is nothing
+   to type into yet, and a focusable field that accepts text and discards it is
+   the thing this state exists to avoid. */
+.input--disabled { color: var(--color-neutral-700); border-style: dashed; }
 
 .pill {
   display: inline-flex; align-items: center;
@@ -249,6 +263,12 @@ a:hover { color: var(--color-accent); }
 .story .kick { margin-top: 18px; }
 
 .g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px 28px; }
+/* Fixed thirds are right for post cards, where a short row should leave a gap
+   rather than blow one card up to full width. The lanes are the opposite case:
+   there are as many lanes as there are non-empty categories, that count is the
+   design rather than an accident of how much has been published, and a hard
+   third column leaves the section looking broken whenever it is not exactly 3. */
+.g3--fit { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
 .g4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr); gap: 36px; align-items: start; }
 .split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.9fr); gap: 40px; align-items: center; }
@@ -278,7 +298,20 @@ a:hover { color: var(--color-accent); }
 .lane__title { font-weight: 700; font-size: 24px; line-height: 1.25; margin-top: 12px; }
 .lane__copy { font-size: 16px; line-height: 1.6; color: var(--color-neutral-800); margin-top: 10px; }
 .lane__links { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.lane__links li { font-size: 16px; color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+/* Not styled as links. The whole card is one anchor pointing at the category,
+   so these titles cannot be anchors themselves — nesting them is invalid HTML.
+   Underlined and in the accent colour they read as separate destinations and
+   are not: clicking "SpaceX Tanking Past IPO Price" went to Finance. A leading
+   marker says "here is what is inside" without promising a click. */
+.lane__links li {
+  font-size: 16px; color: var(--color-neutral-800);
+  padding-left: 18px; position: relative;
+}
+.lane__links li::before {
+  content: ""; position: absolute; left: 0; top: 0.72em;
+  width: 8px; height: 1px; background: var(--color-accent);
+}
+.lane:hover .lane__links li { color: var(--color-neutral-900); }
 
 /* Picks */
 .pick { display: block; overflow: hidden; }

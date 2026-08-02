@@ -2,23 +2,26 @@
 #
 # Provision an Ubuntu 24.04 host to serve The-abyss.
 #
-# This is the droplet-side mirror of docker/Dockerfile and docker/entrypoint.sh.
+# This is the server-side mirror of docker/Dockerfile and docker/entrypoint.sh.
 # The container was built by hand, one step at a time, so that this script could
 # be written from something already proven rather than from a guess. Where the
 # two differ, the difference is deliberate and commented.
 #
-# Retargeted to AWS EC2 on 2026-08-01. The stack is identical, because this was
-# written against Ubuntu rather than against a provider. What changed is the
-# platform around it: the login user, the firewall model, and swap. Those are
-# marked EC2 below.
+# Provider-neutral, as of 2026-08-02. Everything between here and the "Done"
+# banner targets Ubuntu, not a provider, and has been verified to run unchanged
+# on a bare ubuntu:24.04 image twice in a row. Hosting is still undecided in
+# PLAN.md, and this script had already been retargeted three times in four days,
+# each retarget editing prose rather than code. So the provider-specific parts
+# are now confined to one block, at the bottom, under "Remaining".
 #
-# EC2's Ubuntu AMI logs you in as `ubuntu` and disables root SSH, so this is run
-# under sudo rather than as root directly:
-#
-#   # ON AWS SERVER
+#   # ON SERVER
 #   sudo SITE_DOMAIN=example.com SITE_TITLE='The-abyss' \
 #        ADMIN_USER=casey ADMIN_EMAIL=you@example.com \
 #        bash scripts/provision.sh
+#
+# `sudo` because a DigitalOcean droplet logs in as root while an EC2 Ubuntu AMI
+# logs in as `ubuntu` with root SSH disabled. Under sudo both work; as root only
+# one does.
 #
 # Passwords are never arguments, never defaults, and never written to this file.
 # The script prompts for them with a silent read, so they stay out of the shell
@@ -56,8 +59,8 @@ log()  { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 # can load kernel modules, and no swap it is allowed to create, and PLAN.md
 # already records that as the container's known limitation. Guarding these three
 # is what lets the whole WordPress-shaped part of this script be tested in a
-# throwaway container before it is ever pointed at an EC2 instance that costs
-# money and takes a relaunch to fix.
+# throwaway container before it is ever pointed at a paid instance that costs
+# money and takes a rebuild to fix.
 #
 # The guards skip; they never fake. A skipped step says so, loudly, so a
 # container run is never mistaken for a full one.
@@ -75,7 +78,7 @@ warn() { printf '\033[33mwarning: %s\033[0m\n' "$*" >&2; }
 skipped() { printf '\033[33m   SKIPPED — %s\033[0m\n' "$*"; SKIPS=$((SKIPS+1)); }
 die()  { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
-[ "$(id -u)" -eq 0 ] || die "must run as root. On EC2: sudo bash scripts/provision.sh"
+[ "$(id -u)" -eq 0 ] || die "must run as root: sudo bash scripts/provision.sh"
 [ -n "$SITE_DOMAIN" ] || die "SITE_DOMAIN is required, for example SITE_DOMAIN=example.com"
 [ -n "$ADMIN_USER" ]  || die "ADMIN_USER is required."
 [ -n "$ADMIN_EMAIL" ] || die "ADMIN_EMAIL is required."
@@ -106,7 +109,7 @@ done
 # packages, and a missing one surfaces as a blank 500 with nothing in the error
 # log, because WordPress calls wp_die() rather than raising a PHP error. That
 # cost a debugging session in the container; it is spelled out here so it cannot
-# cost another one on the droplet.
+# cost another one on the server.
 
 log "Installing packages"
 export DEBIAN_FRONTEND=noninteractive
@@ -175,8 +178,9 @@ wp_run() { sudo -u www-data -- wp --path="$WP_DIR" "$@"; }
 
 log "Database"
 
-# Started explicitly rather than assumed. On EC2 systemd starts both at install
-# time, so this is a no-op there; in a container nothing starts them and every
+# Started explicitly rather than assumed. On any host with systemd both are
+# started at install time, so this is a no-op there; in a container nothing
+# starts them and every
 # mysql call below would fail with a socket error that reads like a permissions
 # problem. Being explicit costs nothing and removes a whole class of confusing
 # first-run failure.
@@ -256,7 +260,12 @@ fi
 
 # Pretty permalinks. Requires AllowOverride All, which the vhost already sets;
 # without it every URL except the home page 404s.
-wp_run rewrite structure '/%category%/%postname%/' >/dev/null
+#
+# Flat, not '/%category%/%postname%/'. A category in the path means a post's URL
+# changes whenever it is recategorised, and a post in two categories gets one of
+# them picked for it. The topical grouping that structure buys is carried by
+# breadcrumbs and internal links instead, neither of which breaks a live URL.
+wp_run rewrite structure '/%postname%/' >/dev/null
 wp_run rewrite flush --hard >/dev/null
 
 # `wp rewrite flush --hard` writes the BEGIN/END WordPress markers but leaves
@@ -322,11 +331,11 @@ done 3< "$REPO_DIR/scripts/plugins.txt"
 # --- hardening --------------------------------------------------------------
 
 log "Swap"
-# EC2 (and the smaller droplet sizes) ship with no swap. The architecture table
-# in PLAN.md calls for 2 GiB at low swappiness: MySQL, PHP workers, and image
-# processing sharing 2 GiB of RAM is exactly where a WordPress host OOMs, and
-# the OOM killer usually takes MySQL, which looks like data corruption rather
-# than memory pressure.
+# Neither EC2 nor the smaller droplet sizes ship with swap. The architecture
+# table in PLAN.md calls for 2 GiB at low swappiness: MySQL, PHP workers, and
+# image processing sharing 2 GiB of RAM is exactly where a WordPress host OOMs,
+# and the OOM killer usually takes MySQL, which looks like data corruption
+# rather than memory pressure.
 if ! has_systemd; then
 	skipped "swap: containers cannot swapon; this runs on the real host only"
 elif [ "$(swapon --show --noheadings | wc -l)" -eq 0 ] && [ ! -f /swapfile ]; then
@@ -343,15 +352,16 @@ else
 fi
 
 log "Firewall and fail2ban"
-# EC2: the security group is the real firewall and is configured in AWS, not
-# here. ufw is a second, host-level layer. It is enabled because defence in depth
-# is worth having, but note that the two can disagree silently — a port open in
-# the security group and closed here simply does not work, with nothing in either
-# console saying why. Check both when a port appears dead.
+# ufw is the host-level layer, and on some providers it is the only layer. An
+# EC2 security group always sits in front of it; a DigitalOcean cloud firewall
+# does only if one has been attached, and by default none is. Either way the two
+# can disagree silently — a port opened in the provider's console and closed here
+# simply does not work, with nothing in either place saying why. Check both when
+# a port appears dead.
 #
 # OpenSSH is allowed before enabling, which is the difference between a firewall
-# and a lockout. On EC2 a lockout is recoverable only through SSM or a stop,
-# detach, fix, reattach cycle, so the ordering here is load-bearing.
+# and a lockout. Recovering from a lockout means the provider's console recovery
+# path, so the ordering here is load-bearing on every provider.
 if has_systemd; then
 	ufw allow OpenSSH >/dev/null
 	ufw allow 'Apache Full' >/dev/null
@@ -372,34 +382,51 @@ cat <<EOF
 
 Provisioned: https://$SITE_DOMAIN  (not yet TLS)
 
-Remaining, in order, and yours to run:
+Remaining, in order, and yours to run. Everything above this line was
+provider-neutral; everything below is where the two differ.
 
-  1. Associate an Elastic IP, if you have not already. An auto-assigned public
-     IPv4 is released on stop/start, and both DNS and TLS need a stable address.
+  1. Make sure this host has a stable public IP. Both DNS and TLS need one.
+       droplet — it already has one. A Reserved IP is optional, and only
+                 buys you the ability to move the address to another droplet.
+       EC2     — associate an Elastic IP. The auto-assigned public IPv4 is
+                 released on stop/start, so without this the address changes
+                 under you and TLS renewal fails later, not now.
 
-  2. Point DNS: an A record for $SITE_DOMAIN and www to that Elastic IP.
-     Confirm it resolves before step 3, or certbot burns a rate limit:
+  2. Point DNS: an A record for $SITE_DOMAIN and www to that address.
+     Confirm it resolves before step 4, or certbot burns a rate limit:
 
        dig +short $SITE_DOMAIN
 
-  3. Open 80 and 443 in the security group. ufw is already allowing them
-     host-side, but the security group is the firewall that decides.
+  3. Open 80 and 443 at the provider's edge, if there is one.
+       droplet — only applies if a cloud firewall is attached. If none is,
+                 ufw above is already the whole firewall and this is a no-op.
+       EC2     — required. The security group always applies, and a port that
+                 is open in ufw but closed there is closed.
 
   4. Issue the certificate:
 
        certbot --apache -d $SITE_DOMAIN -d www.$SITE_DOMAIN
 
-  5. Confirm the instance appears in Systems Manager, then remove the port 22
-     rule from the security group. See the port 22 divergence in AGENTS.md:
-     22 is open at launch for recovery, not as the end state.
+  5. Narrow SSH. 22 is open for recovery, not as the end state.
+       droplet — restrict source to your own IP, or move to key-only plus
+                 fail2ban, which is already running. Do not close 22 outright:
+                 the recovery console in the control panel is a rescue path,
+                 not a working admin channel, so leaving 22 reachable from
+                 somewhere is the difference between locked down and locked out.
+       EC2     — confirm the instance appears in Systems Manager first, then
+                 remove the port 22 rule entirely. See the port 22 divergence
+                 in AGENTS.md.
 
-  6. Configure FluentSMTP. Outbound port 25 is blocked on EC2, so this needs
-     SES or another provider over 587/465 or an HTTP API. Until it is done,
-     password resets and comment notifications fail silently.
+  6. Configure FluentSMTP. Outbound port 25 is blocked by default on both
+     providers, so this needs a relay over 587/465 or an HTTP API rather than
+     direct delivery. Until it is done, password resets and comment
+     notifications fail silently — the site looks fine and the mail is gone.
 
-  7. Configure EBS snapshots through Data Lifecycle Manager or AWS Backup.
-     EC2 has no automatic backups; unless you set this up, there are none.
-     Then configure UpdraftPlus to S3 as the application-level backup, take one,
+  7. Set up backups at both layers, because they fail differently.
+       droplet — enable droplet backups, or schedule snapshots.
+       EC2     — EBS snapshots through Data Lifecycle Manager or AWS Backup.
+     Neither provider backs anything up unless you turn it on. Then configure
+     UpdraftPlus to off-site storage as the application-level backup, take one,
      and confirm it restores. A backup nobody has restored is not a backup.
 
   8. Activate the page cache only once the site is live:

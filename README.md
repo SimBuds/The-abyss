@@ -1382,3 +1382,167 @@ happily offer the rating markup that earns a manual action.
 *Why 302 and not 301 on cloaked links?* A 301 tells a search engine the resource
 has permanently moved to the merchant, which is not what an affiliate link means.
 302 is ThirstyAffiliates' default and the correct signal.
+
+---
+
+### Step 8g — permalinks, and the two plugins that carry their own setup
+
+**Goal:** settle the URL structure before anything is indexed, and check that the
+four remaining plugins are actually functional rather than merely active.
+
+**Why it matters:** permalink structure is the one setting that is cheap now and
+expensive later. Every URL changed after launch needs a 301 kept alive forever,
+and the cost scales with the number of published posts. There are three.
+
+**The structure changed from `/%category%/%postname%/` to `/%postname%/`.**
+
+The category-in-path version was chosen in Step 5 and is wrong for this site. A
+post's URL under it depends on its taxonomy, so recategorising a post changes its
+address, and a post filed under both `finance` and `ai` — the likely case here,
+since the two lanes overlap on exactly the stories worth writing — gets one of
+them picked for it rather than choosing. The taxonomy is not settled: of eight
+categories, six have zero posts. Baking an unsettled taxonomy into every URL
+trades a real, permanent liability for a grouping signal that breadcrumbs and
+internal links already carry.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+wp --path=/var/www/the-abyss rewrite structure '/%postname%/'
+wp --path=/var/www/the-abyss rewrite flush --hard
+```
+
+`scripts/provision.sh` was updated to match, so the server gets the same
+structure rather than inheriting the old one.
+
+**Verify:**
+
+Home, `/articles/`, a post, `/category/finance/` and `/sitemap_index.xml` all
+return `200`, and `/go/test-broker/` still returns `302` — the cloaked-link rules
+survived the flush, which is the thing a permalink change is most likely to
+break. `.htaccess` came back with both rule blocks intact and in the right order,
+the ThirstyAffiliates bot block ahead of the WordPress block.
+
+Author and date archives now return `404`. On a single-author site an author
+archive is a byte-for-byte duplicate of the blog index, and date archives are
+duplicates sliced by month; both were live and crawlable.
+
+**Two corrections to Step 8f:**
+
+*Rank Math is configured, and its sitemap is serving.* `/sitemap_index.xml`
+returns `200` with a Rank Math index listing post, page and category sitemaps,
+and core's `/wp-sitemap.xml` now `301`s to it. The Step 8f claim that the wizard
+had not run was based on reading `rank_math_options_general`, which does not
+exist — the wizard writes `rank-math-options-general`, hyphenated. The
+underscored names are the module and version flags only. The probe was wrong,
+not the plugin.
+
+*Redirection is active but has no database tables.* `SHOW TABLES` returns no
+`wp_redirection_*` table at all, and `redirection_options.monitor_post` is `0`.
+It creates its schema from a setup screen at Tools → Redirection, not on
+activation, so until that runs it is inert — it logs nothing and redirects
+nothing. This matters more than it sounds given the change above: the safety net
+for any future slug edit is a plugin that is currently not running.
+
+**Q&A:**
+
+*If URLs are cheap to change before launch, why settle now rather than later?*
+Because `blog_public` is the only thing making them cheap, and it is a single
+option that gets flipped once. After that flip the cost of a URL change is set by
+how much has been crawled, which is not under our control and not observable in
+time to react.
+
+*Doesn't dropping the category from the URL lose the topical clustering signal
+for a two-lane site?* The clustering comes from what links to what. Rank Math
+emits `BreadcrumbList` schema, the category archives exist and are crawlable, and
+posts link to each other within a lane. None of that depends on the path. The
+path only decides what breaks when a post moves.
+
+*Why leave the six empty categories rather than deleting them as part of this?*
+They are a content decision, not a configuration one, and `noindex_empty_taxonomies`
+is already `on` so they are not being indexed while empty. They should be pruned
+to whatever the real taxonomy turns out to be, which is a call to make with the
+editorial plan and not from the command line.
+
+---
+
+### Step 8h — proving the provisioning script redeploys, on either provider
+
+**Goal:** establish that `scripts/provision.sh` will build the site on a host
+that has never seen it, and survive being run again on the host it just built,
+before that claim is tested somewhere it costs money to be wrong.
+
+**Why it matters:** the script had been edited several times since it was last
+executed — the permalink change in Step 8g among them — and an untested
+provisioning script is a plan, not a tool. It is also the one artefact whose
+first failure happens on a paid instance with a domain pointed at it.
+
+**How it was tested:** `scripts/test-provision/`, added in this step.
+
+```bash
+# ON HOST
+bash scripts/test-provision/run.sh
+```
+
+It builds a bare `ubuntu:24.04` image carrying only what a provider image
+already has — `ca-certificates`, `curl`, `sudo`, `python3` — and then runs
+`provision.sh` twice, followed by 34 read-only checks. Nothing is stubbed and
+nothing is cached: it really installs Apache, MySQL and PHP, really downloads
+WordPress, and really pulls all nine plugins from wordpress.org. A test that
+skips the slow parts stops testing the parts that break.
+
+The password prompts are driven through a pty (`drive.py`) rather than piped, so
+the silent `read -rsp` calls behave exactly as they do for a human at an SSH
+prompt. The passwords are generated inside the container and never become
+arguments, environment, or files.
+
+**Verify:** both runs exit `0` and all 34 checks pass. The ones that carry the
+most weight:
+
+- Second run prompts for **nothing**, installs nothing twice, and exits clean —
+  it prints `database theabyss already exists, leaving it alone` and a series of
+  "already active" warnings. That is the redeploy case.
+- `/hello-world/` and `/sample-page/` both return `200`. Pretty permalinks are
+  the failure this script has hit before, and the mode is nasty: the home page
+  keeps returning `200` while every other URL 404s.
+- The two `:inactive` plugins are installed and **not** activated, so the
+  suffix in `plugins.txt` is honoured rather than ignored.
+- Theme assets are served through the symlink, which fails loudly if the link
+  dangles — the exact bug the `abyss-theme` rename caused once already.
+
+**What it does not cover, and cannot:** swap, ufw and fail2ban are `SKIPPED` in
+a container and say so on every run, and TLS is deliberately never attempted by
+the script at all. Those are real-host-only and remain unproven until the real
+host exists.
+
+**Provider assumptions were removed rather than migrated a fourth time.**
+The script's prose still targeted AWS EC2 while `AGENTS.md` had already moved
+back to a droplet. Everything above the closing banner is now written against
+Ubuntu with no provider named, and the differences are confined to one block at
+the bottom that answers both cases side by side: stable IP, edge firewall, SSH
+narrowing, mail, and backups. `AGENTS.md` predicted this — it notes the label
+set had been migrated three times in four days and that the cheaper structure is
+one named block rather than provider details threaded throughout.
+
+**Q&A:**
+
+*Why run provision.sh twice rather than once?* Once proves it works. Twice
+proves it is idempotent, which is the property that actually gets used — every
+deploy after the first is a re-run, and the failure mode of a non-idempotent
+script is a second database, a duplicate admin, or a prompt hanging forever in a
+non-interactive session.
+
+*Three checks failed on the first attempt and none were the script's fault. How
+is that not the test being useless?* All three were artefacts of testing in
+Docker rather than on a host: each `RUN` is a fresh container so nothing
+`provision.sh` started was still running, and `/var/run` is frozen into the image
+layer, so stale pid files convinced the init scripts that Apache was already up
+and they exited `0` without starting it. Both are things a real host does not do,
+since it has systemd and boots with `/run` on tmpfs. They are fixed in the
+harness with a comment saying why, not worked around — a container test is only
+worth having if its divergences from a real host are known and written down.
+
+*Why does the harness copy the working tree instead of `HEAD`?* Because the
+change being tested is usually uncommitted. Testing `HEAD` would have silently
+verified the previous version of `provision.sh` in this very step.

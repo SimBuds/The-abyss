@@ -25,7 +25,7 @@ if ( empty( $categories ) ) {
 		<h2 class="sec-title"><?php esc_html_e( 'What are you trying to decide?', 'abyss' ); ?></h2>
 		<p class="sec-lede"><?php esc_html_e( 'Pick the lane you came for &mdash; nothing is hidden behind a topic you did not choose.', 'abyss' ); ?></p>
 
-		<div class="g3" style="margin-top:40px">
+		<div class="g3 g3--fit" style="margin-top:40px">
 			<?php foreach ( $categories as $category ) : ?>
 				<a class="card card--lift lane" href="<?php echo esc_url( get_category_link( $category ) ); ?>">
 					<p class="kick"><?php echo esc_html( $category->name ); ?></p>
