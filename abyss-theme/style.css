@@ -474,7 +474,13 @@ a:hover { color: var(--color-accent); }
 }
 .pagination .page-numbers.current { background: var(--color-accent); border-color: var(--color-accent); color: var(--on-accent); }
 .arch__head { padding-top: 64px; }
-.arch__title { font-weight: 800; font-size: 42px; }
+.arch__title {
+  font-weight: 800; font-size: 42px;
+  /* A long term name at 42px has no break opportunity and pushed the document
+     3px wider than a 390px viewport, which scrolls the whole page sideways for
+     3px of heading. */
+  overflow-wrap: break-word;
+}
 
 .searchform { display: flex; gap: 10px; }
 
@@ -608,3 +614,103 @@ a:hover { color: var(--color-accent); }
 /* A sticky post is marked with the accent rule, which is the design's one
    emphasis device, rather than a badge or a tint. */
 .card.sticky { border-left: 3px solid var(--color-accent); }
+
+/* ---------------------------------------------------------------
+   15. Comment form and thread
+   Added 2026-08-02. Comments are open and the form was rendering
+   entirely unstyled: white browser-default inputs on the navy page,
+   labels sitting inline against their fields. It was the only
+   surface on the site that did not look like the site.
+   It was also a real layout bug rather than only a cosmetic one.
+   Core's textarea carries cols="45", which computes to 392px, and
+   with no max-width that pushed every article page 42px wider than
+   a 390px viewport — measured, not assumed. Article pages are the
+   most-visited type here, so the whole site scrolled sideways on a
+   phone because of one unstyled control.
+   --------------------------------------------------------------- */
+
+#comments { margin-top: 8px; }
+
+.comment-reply-title {
+  font-family: var(--font-heading); font-weight: 700; font-size: 24px;
+  line-height: 1.25; margin: 0;
+}
+#respond { margin-top: 40px; }
+
+.comment-notes,
+.logged-in-as,
+.comment-form-cookies-consent label {
+  font-size: 14px; color: var(--color-neutral-700);
+}
+.comment-notes, .logged-in-as { margin: 8px 0 0; }
+
+/* Every field stacks: label above control, control full width. The inline
+   default put a 392px textarea beside its own label. */
+.comment-form p { margin: 20px 0 0; }
+.comment-form label {
+  display: block; margin-bottom: 8px;
+  font-family: var(--font-heading); font-weight: 600; font-size: 15px;
+  color: var(--color-text);
+}
+
+.comment-form input[type="text"],
+.comment-form input[type="email"],
+.comment-form input[type="url"],
+.comment-form textarea {
+  width: 100%; max-width: 100%;
+  border: 1px solid var(--color-neutral-400); border-radius: var(--radius-btn);
+  padding: 13px 16px;
+  font-family: var(--font-body); font-size: 16px;
+  background: var(--color-card); color: var(--color-text);
+}
+/* 16px, not smaller: iOS Safari zooms the page on focus for anything under
+   16px, and the zoom is not undone when the field is blurred. */
+.comment-form textarea { min-height: 160px; resize: vertical; }
+
+.comment-form input:focus-visible,
+.comment-form textarea:focus-visible {
+  outline: 2px solid var(--color-accent); outline-offset: 2px;
+  border-color: var(--color-accent);
+}
+
+/* The consent checkbox is the one control that is genuinely inline, so it opts
+   back out of the stacking above. */
+.comment-form-cookies-consent {
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.comment-form-cookies-consent input { margin-top: 3px; flex: none; }
+.comment-form-cookies-consent label { margin-bottom: 0; font-weight: 400; }
+
+.form-submit { margin-top: 24px; }
+
+/* --- the thread ------------------------------------------------ */
+
+.comment-list, .comment-list ol { list-style: none; margin: 0; padding: 0; }
+.comment-list ol.children { margin-left: 24px; padding-left: 20px; border-left: 1px solid var(--color-divider); }
+.comment-list li { margin-top: 24px; }
+
+.comment-body {
+  background: var(--color-card); border: 1px solid var(--color-divider);
+  border-radius: var(--radius); padding: 20px 22px;
+}
+.comment-author { display: flex; align-items: center; gap: 10px; }
+.comment-author .avatar { border-radius: 50%; }
+.comment-author .fn {
+  font-family: var(--font-heading); font-weight: 700; font-size: 16px; font-style: normal;
+}
+/* "says" is core's screen-reader connective and reads as noise when shown. */
+.comment-author .says { display: none; }
+
+.comment-meta, .comment-metadata { font-size: 14px; color: var(--color-neutral-700); margin-top: 4px; }
+.comment-content { margin-top: 12px; font-size: 16px; line-height: 1.65; }
+.comment-content p { margin-top: 12px; }
+.comment-content p:first-child { margin-top: 0; }
+
+.reply { margin-top: 12px; font-size: 14px; }
+
+/* A comment awaiting approval is the one case where the visitor needs telling
+   that nothing is broken: their comment posted and is simply not public yet. */
+.comment-awaiting-moderation {
+  display: block; margin-top: 10px;
+  font-size: 14px; color: var(--color-accent);
+}

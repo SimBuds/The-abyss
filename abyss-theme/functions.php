@@ -830,3 +830,13 @@ function abyss_pagination() {
 		'class'     => 'pagination',
 	) );
 }
+
+/**
+ * Drop core's archive title prefix.
+ *
+ * archive.php prints the archive kind as its own kicker directly above the
+ * title, so the built-in prefix produced "Category" over "Category: Finance".
+ * Removed here rather than string-replaced in the template, because the prefix
+ * is translated and matching it by hand breaks in every locale but this one.
+ */
+add_filter( 'get_the_archive_title_prefix', '__return_empty_string' );

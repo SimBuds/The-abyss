@@ -6,10 +6,35 @@
  */
 
 get_header();
+
+/*
+ * The kicker names the kind of archive, so the title does not have to. Core's
+ * own prefix is dropped in functions.php for the same reason: with it, the
+ * heading read "Category: Finance" directly under a kicker already reading
+ * "Category".
+ */
+if ( is_category() ) {
+	$abyss_arch_kind = __( 'Category', 'abyss' );
+} elseif ( is_tag() ) {
+	$abyss_arch_kind = __( 'Tag', 'abyss' );
+} elseif ( is_author() ) {
+	$abyss_arch_kind = __( 'Author', 'abyss' );
+} elseif ( is_date() ) {
+	$abyss_arch_kind = __( 'Archive', 'abyss' );
+} else {
+	$abyss_arch_kind = __( 'Section', 'abyss' );
+}
 ?>
 <section class="wrap arch__head">
-	<p class="kick"><?php esc_html_e( 'Section', 'abyss' ); ?></p>
-	<h1 class="arch__title" style="margin-top:12px"><?php echo esc_html( get_the_archive_title() ); ?></h1>
+	<p class="kick"><?php echo esc_html( $abyss_arch_kind ); ?></p>
+	<?php
+	/*
+	 * Not esc_html(). get_the_archive_title() returns markup — core wraps the
+	 * term name in a <span> — so escaping it printed the tags as visible text
+	 * and every category page read "Category: <span>Finance</span>".
+	 */
+	?>
+	<h1 class="arch__title" style="margin-top:12px"><?php echo wp_kses_post( get_the_archive_title() ); ?></h1>
 
 	<?php if ( get_the_archive_description() ) : ?>
 		<div class="sec-lede"><?php echo wp_kses_post( get_the_archive_description() ); ?></div>

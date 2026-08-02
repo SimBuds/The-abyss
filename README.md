@@ -1546,3 +1546,112 @@ worth having if its divergences from a real host are known and written down.
 *Why does the harness copy the working tree instead of `HEAD`?* Because the
 change being tested is usually uncommitted. Testing `HEAD` would have silently
 verified the previous version of `provision.sh` in this very step.
+
+---
+
+### Step 8i — feature test of the running site
+
+**Goal:** exercise every route and every interactive feature of the local Docker
+server, and fix what that turns up. This is the "test site features and get a
+full working docker server running" step of the delivery sequence.
+
+**The container was down**, and `docker compose ps` showed nothing, which reads
+like the stack was never defined. It hides stopped services; `docker compose up
+-d` brought it back with no rebuild. Worth knowing before concluding anything is
+missing.
+
+**Method:** `WP_DEBUG` and `WP_DEBUG_LOG` on with `WP_DEBUG_DISPLAY` off, then a
+crawl of all seventeen routes, then the features that need more than a status
+code. Debug logging is left **on** in the container: a development environment
+that hides notices is not doing its job, and `WP_DEBUG_DISPLAY` is off so
+nothing leaks into the markup.
+
+**Verify — what passed unchanged:**
+
+- All seventeen routes return the right status, including `404` for a missing
+  page and `302` for a cloaked affiliate link. **No PHP notices** in the debug
+  log across the whole crawl, before or after the changes below.
+- Every referenced asset resolves — zero broken local assets.
+- **No third-party asset hosts.** The only external references are links inside
+  post content. The self-hosted font work holds; nothing calls Google Fonts.
+- The comment pipeline works end to end. A posted comment is accepted and held
+  as `comment_approved=0`, because `comment_previously_approved` gates
+  first-time commenters. That is the correct default and needed no change.
+
+**Six defects found and fixed:**
+
+1. *The comment form was completely unstyled* — white browser-default controls
+   on the navy page, labels inline against their fields. It was the only surface
+   on the site that did not look like the site. New section 15 in `style.css`.
+
+2. *Every article page scrolled sideways on a phone.* Core's comment textarea
+   carries `cols="45"`, which computes to 392px, and with no `max-width` it
+   pushed the document 42px past a 390px viewport. Article pages are the
+   most-visited type, so one unstyled control moved the whole site sideways.
+
+3. *Every category archive printed its own markup as text* —
+   `esc_html( get_the_archive_title() )` where that function returns
+   `Category: <span>Finance</span>`. The heading literally read
+   `Category: <span>Finance</span>`. Now `wp_kses_post()`, with core's prefix
+   dropped by filter and the archive kind moved to the kicker above it.
+
+4. *The archive `<h1>` had no break opportunity*, so a long term name overflowed
+   at 42px and scrolled the page 3px sideways.
+
+5. *The lane cards promised links they did not deliver.* Recent post titles were
+   styled in the accent colour and underlined, but the whole card is one anchor
+   pointing at the category — they cannot be anchors themselves without nesting.
+   Clicking "SpaceX Tanking Past IPO Price" went to Finance. Restyled as a list
+   with a leading rule, so they read as contents rather than destinations.
+
+6. *The lanes grid left an empty third column.* `.g3` is fixed thirds, which is
+   right for post cards but wrong for lanes: there are as many lanes as there are
+   non-empty categories, and there are two. New `.g3--fit` modifier.
+
+**Two content fixes:** the byline read `abyss_local` — the admin username — on
+every card and article; and the footer had no privacy policy link, though the
+page existed.
+
+**One behaviour change, deliberately:** the newsletter form posted to `action=""`
+when no provider is wired, which posts to the current URL. The page reloads, the
+address is discarded, and the visitor has every reason to think they subscribed.
+It now renders as visibly not-yet-open instead. A signup that silently eats
+addresses is worse than one that admits it is not ready.
+
+The local fixture that was supposed to cover this had never worked: it filters
+`the_abyss_newsletter_action` while the theme applies `abyss_newsletter_action`.
+The names never matched, so the "wired" path had never once been exercised.
+Fixture corrected, both paths now verified.
+
+**On method — the screenshot tool cannot see horizontal overflow.** A full-page
+screenshot clips at the window width, so an overflowing page and a correct one
+produce identical images. Confirmed with a deliberately 900px-wide control page
+rendered at 390px: the output was 390px, not 900px. Every "looks fine on mobile"
+judgement made from a screenshot in earlier steps carries that blind spot.
+
+Overflow is now measured instead, with a same-origin probe that loads each page
+in a fixed-width iframe and compares `documentElement.scrollWidth` to
+`clientWidth`. Five page types across 360px, 390px and 768px: **fifteen of
+fifteen clean**, where four were overflowing before. The probe files were removed
+from the docroot afterwards.
+
+**Q&A:**
+
+*The first element-level probe blamed the ticker, which was wrong. Why?*
+`getBoundingClientRect()` reports layout geometry whether or not an ancestor
+clips it, so every item inside the ticker's `overflow-x: hidden` track looked
+like it was 4,700px past the edge. The document's own `scrollWidth` was 420,
+which is what proved the ticker innocent — clipped content cannot contribute to
+it. The probe was then changed to skip any element with a clipping ancestor,
+which is what isolated the textarea.
+
+*Why fix the archive title escaping rather than just stripping the tags?* Because
+`esc_html()` on that function was the bug, not the `<span>`. Stripping tags would
+have produced "Category: Finance" under a kicker already reading "Category", and
+left the same mistake in place for any other markup core adds later.
+
+*Why keep `.g3` fixed for post cards but not for lanes?* A short row of post
+cards should leave a gap — cards stay one width and the grid stays legible. That
+was settled earlier when a single related post stretched to a 960px column. Lanes
+are the opposite: their count is editorial, not incidental, so the row should
+close up around however many there are.
