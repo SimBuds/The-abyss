@@ -15,3 +15,15 @@ thirstyaffiliates               # affiliate link cloaking and tracking
 
 wp-super-cache:inactive         # activated only after the site is live; caching hides changes
 google-site-kit:inactive        # inert until its Google OAuth completes against a real domain
+
+# ---------------------------------------------------------------------------
+# Local state, 2026-08-01: five of the nine above are NOT installed locally.
+# complianz-gdpr, fluent-smtp, google-site-kit, wp-super-cache and updraftplus
+# were removed from the container because none of them can be configured
+# without a real domain, and an unconfigured plugin is just a surface to
+# forget about.
+#
+# This file is unchanged and still lists all nine, because it drives
+# provision.sh, which builds the real server. Do not trim it to match the
+# container.
+# ---------------------------------------------------------------------------

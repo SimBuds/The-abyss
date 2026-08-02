@@ -484,3 +484,94 @@ a:hover { color: var(--color-accent); }
   .hdr__cta { display: none; }
   .rates th, .rates td { padding: 14px 16px; }
 }
+
+/* ---------------------------------------------------------------
+   14. Block editor content
+   Added 2026-08-01. Everything above styles markup this theme
+   emits. This styles markup the *editor* emits, which the theme
+   cannot rename. The theme declares add_theme_support('align-wide')
+   but shipped no CSS for it, so alignwide and alignfull rendered
+   at the prose measure and the support was a claim the front end
+   did not honour.
+   --------------------------------------------------------------- */
+
+/* Both alignments drop the 44rem prose cap and fill the article column.
+   They are not distinguished, and that is deliberate rather than lazy: on
+   single.php .prose shares a grid row with a sticky .rail, so there is no
+   viewport to bleed into without running under the sidebar. On page.php,
+   which has no rail, the column is the wrap and they fill that instead. */
+.prose > .alignwide,
+.prose > .alignfull { max-width: none; }
+
+.prose > .aligncenter { margin-inline: auto; }
+
+/* Floats cap at half the column and stop floating below 600px, where the
+   remaining text column is too narrow to read. */
+.prose > .alignleft,
+.prose > .alignright { max-width: 50%; }
+.prose > .alignleft  { float: left;  margin: 6px 28px 20px 0; }
+.prose > .alignright { float: right; margin: 6px 0 20px 28px; }
+
+@media (max-width: 600px) {
+  .prose > .alignleft,
+  .prose > .alignright { float: none; max-width: 100%; margin-inline: 0; }
+}
+
+/* A float must not escape the article and drag itself alongside the rail,
+   the tag list, or the comments. */
+.prose::after { content: ""; display: table; clear: both; }
+
+/* Captions are chrome, not body copy, so they take the meta treatment and
+   sit flush left under the image rather than centred. */
+.prose figcaption,
+.prose .wp-caption-text {
+  margin-top: 10px; font-size: 14px; line-height: 1.5;
+  color: var(--color-neutral-700); text-align: left;
+}
+
+/* The figure rounding above clips a caption that sits inside the figure,
+   so the radius belongs to the image rather than to the wrapper. */
+.prose figure { border-radius: 0; overflow: visible; }
+.prose figure img { border-radius: var(--radius); }
+
+.prose .wp-block-gallery { gap: 16px; }
+
+.prose .wp-block-separator {
+  height: 1px; border: 0; margin: 40px 0;
+  background: var(--color-divider); opacity: 1;
+}
+
+/* Pull quote reuses the blockquote's accent rule rather than introducing a
+   second emphasis device. */
+.prose .wp-block-pullquote {
+  padding: 0; border: 0; border-left: 3px solid var(--color-accent);
+  padding-left: 22px; text-align: left; margin: 34px 0;
+}
+.prose .wp-block-pullquote blockquote { border: 0; padding-left: 0; margin: 0; }
+.prose cite {
+  display: block; margin-top: 10px; font-size: 14px;
+  font-style: normal; color: var(--color-neutral-700);
+}
+
+/* Core's button block. It carries .wp-element-button, and it takes the same
+   accent fill and dark label as .btn--primary so an editor-placed button and
+   a theme-placed one cannot look like two different systems. */
+.prose .wp-block-button__link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-heading); font-weight: 700; font-size: 15px;
+  padding: 12px 20px; border-radius: var(--radius-btn);
+  background: var(--color-accent); color: var(--on-accent); text-decoration: none;
+}
+.prose .wp-block-button__link:hover { background: var(--color-accent-600); }
+.prose .is-style-outline .wp-block-button__link {
+  background: transparent; color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+
+/* Wide tables scroll inside their own figure rather than pushing the page
+   sideways. */
+.prose .wp-block-table { overflow-x: auto; }
+
+/* A sticky post is marked with the accent rule, which is the design's one
+   emphasis device, rather than a badge or a tint. */
+.card.sticky { border-left: 3px solid var(--color-accent); }

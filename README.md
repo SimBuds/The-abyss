@@ -31,12 +31,12 @@ docker compose up -d --build
 ssh -p 2222 root@localhost
 ```
 
-**Hosting is AWS EC2**, decided 2026-08-01 and reversing an earlier decision for
-DigitalOcean, which is now the deferred candidate with its reasoning kept. The
-stack transfers unchanged, because it was built against Ubuntu rather than
-against a provider; what changes is the platform around it — the login user, the
-firewall model, the metadata service, backups, and mail. Both candidates, and a
-table of exactly what differs, are in [`PLAN.md`](PLAN.md#hosting-aws-ec2).
+**Hosting is undecided and deliberately parked**, along with the domain. It
+changed three times in four days and each change cost documentation surgery while
+the site gained nothing, so it waits for a decision. The stack itself is
+provider-neutral — it was built against Ubuntu, not against a host — so the
+choice does not block anything currently in flight. The candidates and what each
+implies are in [`PLAN.md`](PLAN.md#hosting-undecided-parked-2026-08-01).
 
 Two scripts carry the transfer: `scripts/provision.sh` turns a fresh Ubuntu host
 into this stack, and `scripts/inventory.sh` is a strictly read-only survey to run
@@ -77,8 +77,8 @@ plugin configuration are fixtures, and plugin setup happens once on the real
 server rather than twice. See the delivery sequence in
 [`PLAN.md`](PLAN.md#delivery-sequence).
 
-Next is launching the EC2 instance and running the inventory. The full roadmap is
-in [`PLAN.md`](PLAN.md#status).
+Next is local: plugin configuration waits for a real domain, so work continues on
+the theme and content model. The full roadmap is in [`PLAN.md`](PLAN.md#status).
 
 ## Build log
 
@@ -1227,3 +1227,158 @@ Its post-install script starts the server and then cannot stop it when
 `policy-rc.d` denies the call. During an image build the sequence completes; run
 interactively it leaves the package half-configured. The test image installs the
 packages at build time for exactly that reason.
+
+#### Step 7f — self-hosted fonts, and the article page verified ✅
+
+**Goal:** stop fetching webfonts from a third party, and put the new theme's
+single-post view in front of a browser for the first time.
+
+**Why it matters:** `PLAN.md` has listed "self-hosted fonts and no unnecessary
+third-party font requests" as a live-site requirement since the beginning, and
+`abyss-theme` arrived loading both families from the Google Fonts CDN. That is
+three problems in one: the endpoint receives every visitor's IP address, which is
+a consent question on a site that ships Complianz precisely because consent is
+being taken seriously; it costs a DNS lookup, connection, and TLS handshake to
+another origin before any render-blocking CSS arrives; and the type only renders
+while someone else's CDN is up.
+
+**Commands:**
+
+```bash
+# ON HOST
+curl -s http://localhost:8080/ | grep -oE 'https?://[a-z0-9.-]*(googleapis|gstatic)[^"]*'
+curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
+  http://localhost:8080/wp-content/themes/abyss-theme/assets/fonts/plus-jakarta-sans-normal-latin.woff2
+```
+
+**Verify:** the grep returns nothing — no third-party font request remains. The
+woff2 serves 200 at 27,348 bytes, and `fonts.css` carries a `filemtime` version.
+Both families render correctly in a screenshot of a single post.
+
+Both are variable fonts, so one file per style covers the whole weight range
+rather than one per weight: six files, ~226KB, split by `unicode-range` so an
+English page never downloads the latin-ext subsets.
+
+**Two defects found by screenshotting the article page, which had never been
+looked at on this theme:**
+
+1. The ported disclosure reused `.disclose`, which is the theme's site-wide
+   footer bar. That class puts all its padding on an inner `.disclose__in`
+   element the markup does not have, so the notice rendered as a tinted block
+   with no spacing, running straight into the article's first sentence. It now
+   has its own `.art-disclose`, marked with the accent rule rather than a tinted
+   panel so it reads as editorial apparatus rather than as an ad.
+2. **The disclosure was being baked into the excerpt.** `abyss_dek()` calls
+   `get_the_excerpt()`, which runs `the_content` through `wp_trim_excerpt()` and
+   then strips tags — so the notice was flattened to plain text and glued to the
+   front of the dek, directly under the headline. The guard inherited from the
+   previous theme (`is_singular`, `in_the_loop`, `is_main_query`) was written for
+   a theme that never generated an excerpt on a singular page. Now also guarded
+   with `doing_filter( 'get_the_excerpt' )`.
+
+**Q&A:**
+
+*Why self-host rather than keep the CDN and add a consent gate?* Because the
+requirement predates the question, and a gate would mean text that does not
+render until someone clicks. Self-hosting removes the problem instead of managing
+it.
+
+*Does shared CDN caching not make Google Fonts faster?* It did until browsers
+partitioned their HTTP caches by origin. A visitor now downloads the font again
+on your site regardless, so the third-party round trip buys nothing.
+
+#### Step 7g — block editor layer for abyss-theme, and one disclosure ✅
+
+**Goal:** finish the theme's content layer and remove a duplicate disclosure.
+
+**Why it matters:** `abyss-theme` declares `add_theme_support( 'align-wide' )` but
+shipped no CSS for it, so `alignwide` and `alignfull` rendered at the 44rem prose
+measure. The support was a claim the front end did not honour. Floats, captions,
+galleries, separators, pull quotes, and core buttons were all unstyled too.
+
+**Verify:** alignwide now drops the prose cap and fills the article column, and
+captions render as chrome flush left under the image. Every page type still
+returns its expected status (`/` 200, `/articles/` 200, `/category/finance/` 200,
+`/?s=broker` 200, `/nope/` 404), with no PHP notices during render.
+
+Both alignments fill the column rather than bleeding to the viewport, and that is
+deliberate: on `single.php` the prose shares a grid row with a sticky sidebar
+rail, so there is no viewport to bleed into without running underneath it.
+
+**The duplicate disclosure is resolved.** `single.php` rendered its own notice
+from the `_abyss_post_affiliate` checkbox while `inc/compliance.php` prepended
+another from the monetised-domain list. Ticking the box produced two disclosures,
+differently worded, one above the other. There is now one piece of markup in
+`abyss_compliance_disclosure_markup()` with two triggers: a link to a monetised
+domain, or the author's checkbox. The checkbox still earns its place, because it
+covers the case the domain list cannot see — a post monetised by a discount code
+rather than by a link.
+
+**Q&A:**
+
+*Why is the figure radius moved onto the image?* `.prose figure` had
+`border-radius` with `overflow: hidden`, which clipped any caption sitting inside
+the figure. The radius belongs to the image; the wrapper has to stay visible.
+
+#### Step 8f — plugin dry run, four configured ✅
+
+**Goal:** configure the plugins that can be configured without a domain, and
+remove the ones that cannot.
+
+**Why it matters:** an installed, unconfigured plugin is a surface with no
+benefit. Five of the nine are blocked on a real domain — Complianz bakes the URL
+and region into its consent config, FluentSMTP needs a verified sending domain,
+Site Kit needs Google OAuth against a live host, WP Super Cache hides template
+changes in development, and UpdraftPlus without remote storage writes backups to
+the same disk it is meant to protect. All five were removed locally.
+`scripts/plugins.txt` still lists all nine, because it drives `provision.sh`.
+
+**Commands:**
+
+```bash
+# IN CONTAINER
+wp --path=/var/www/the-abyss option update ta_link_prefix go
+wp --path=/var/www/the-abyss option update limit_login_allowed_retries 4
+wp --path=/var/www/the-abyss option update rank_math_modules --format=json \
+  '["link-counter","seo-analysis","sitemap"]'
+```
+
+**Verify:**
+
+Link cloaking works end to end — a `thirstylink` published at `/go/test-broker/`
+returns `302` to its destination, so the prefix change took effect and the
+rewrite rules registered.
+
+Rank Math's `rich-snippet` module is off and the article page now emits exactly
+**one** `"@type":"Article"` block. That was the misconfiguration most likely to
+bite: the theme already emits `Article` JSON-LD from `inc/compliance.php`, and
+Google treats duplicate schema as an error rather than ignoring it.
+
+Limit Login is set to 4 retries, a 20-minute lockout, 3 lockouts before the long
+24-hour block, and IP anonymisation on.
+
+**Two findings, one expected and one not:**
+
+*Sitemaps are gated on `blog_public`, which is correct.* With `blog_public = 0`
+every sitemap URL 404s and every page carries `noindex, nofollow`. Confirmed by
+flipping it to `1`, re-testing, and restoring it to `0` — this is the switch that
+gets flipped at launch, and it is per-environment.
+
+*Rank Math is not serving its own sitemap.* With indexing on, `/wp-sitemap.xml`
+(WordPress core's) returns 200 while Rank Math's `/sitemap_index.xml` still 404s,
+and `rank_math_options_general` is empty. **Its setup wizard has not been run**,
+and the parts of Rank Math that matter most for SEO — titles, canonicals,
+sitemaps — come from that wizard rather than from options that can be set
+blindly from the command line. It needs a pass in wp-admin.
+
+**Q&A:**
+
+*Why disable Rank Math's schema module rather than the theme's JSON-LD?* The
+theme's is deliberately conservative: `Article` only, `dateModified` only when
+the post was really revised, and no `aggregateRating` on affiliate comparisons,
+which is what Google's self-serving-review policy prohibits. Rank Math would
+happily offer the rating markup that earns a manual action.
+
+*Why 302 and not 301 on cloaked links?* A 301 tells a search engine the resource
+has permanently moved to the merchant, which is not what an affiliate link means.
+302 is ThirstyAffiliates' default and the correct signal.

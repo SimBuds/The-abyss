@@ -42,10 +42,15 @@ while ( have_posts() ) :
 
 		<div class="artgrid" style="padding-top:48px">
 			<div class="prose">
-				<?php if ( $affiliate ) : ?>
-					<p class="smallprint" style="margin-top:0"><?php esc_html_e( 'This article contains affiliate links. If you buy or open an account through one, we may earn a commission.', 'abyss' ); ?></p>
-				<?php endif; ?>
-
+				<?php
+				/*
+				 * The affiliate disclosure is not rendered here. It is prepended
+				 * to the content by inc/compliance.php, which fires both on a
+				 * link to a monetised domain and on this post's own affiliate
+				 * checkbox. Rendering it here as well produced two disclosures,
+				 * differently worded, one above the other.
+				 */
+				?>
 				<?php the_content(); ?>
 
 				<?php

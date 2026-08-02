@@ -111,6 +111,12 @@ function abyss_compliance_sponsor_outbound_links( $content ) {
 		return $content;
 	}
 
+	// Tags are stripped from an excerpt anyway, so rewriting rel attributes
+	// there is wasted work on every card in every listing.
+	if ( doing_filter( 'get_the_excerpt' ) ) {
+		return $content;
+	}
+
 	return preg_replace_callback(
 		'/<a\s([^>]+)>/i',
 		static function ( $matches ) {
@@ -174,11 +180,38 @@ function abyss_compliance_affiliate_disclosure( $content ) {
 	}
 
 	/*
+	 * Not while an excerpt is being built. wp_trim_excerpt() runs the_content
+	 * through this filter and then strips the tags, so without this the notice
+	 * is flattened into plain text and glued to the front of the excerpt.
+	 *
+	 * The three conditions above were written for the previous theme, where no
+	 * excerpt was ever generated on a singular page. abyss-theme generates one
+	 * for the article dek, so this passed every guard and printed the disclosure
+	 * directly under the headline, running into the first sentence with no space
+	 * between them. Observed 2026-08-01 by screenshot.
+	 */
+	if ( doing_filter( 'get_the_excerpt' ) ) {
+		return $content;
+	}
+
+	/*
 	 * Keyed off the affiliate domain list, not off "any outbound link". An
 	 * article that cites a news site earns nothing from it, and a disclosure
 	 * claiming otherwise is inaccurate in the direction that costs trust: it
 	 * trains readers to skip the notice on the articles where it is true.
 	 */
+	/*
+	 * The theme also carries a manual "this post has affiliate links" checkbox
+	 * (_abyss_post_affiliate). Honouring it here rather than rendering a second
+	 * notice in single.php: an author who ticks the box should get the same
+	 * disclosure, in the same place, not a second differently-worded one under
+	 * the first. It also covers the case the domain list cannot see — a post
+	 * monetised by a discount code rather than by a link.
+	 */
+	if ( '1' === get_post_meta( get_the_ID(), '_abyss_post_affiliate', true ) ) {
+		return abyss_compliance_disclosure_markup() . $content;
+	}
+
 	$found = false;
 
 	if ( preg_match_all( '/<a\s[^>]*href=(["\'])(.*?)\1/i', $content, $matches ) ) {
@@ -194,13 +227,7 @@ function abyss_compliance_affiliate_disclosure( $content ) {
 		return $content;
 	}
 
-	$notice = sprintf(
-		'<aside class="art-disclose"><p><strong>%1$s</strong> %2$s</p></aside>',
-		esc_html__( 'Disclosure:', 'abyss' ),
-		esc_html__( 'Some links in this article are affiliate links. If you buy through one, this site may earn a commission at no extra cost to you. Commissions never determine which products are covered or what is said about them.', 'abyss' )
-	);
-
-	return $notice . $content;
+	return abyss_compliance_disclosure_markup() . $content;
 }
 add_filter( 'the_content', 'abyss_compliance_affiliate_disclosure', 21 );
 
@@ -295,3 +322,19 @@ function abyss_compliance_structured_data() {
 	);
 }
 add_action( 'wp_head', 'abyss_compliance_structured_data' );
+
+/**
+ * The disclosure markup itself, in one place.
+ *
+ * Separated so the automatic path (a link to a monetised domain) and the manual
+ * path (the author's checkbox) cannot drift into two different wordings.
+ *
+ * @return string
+ */
+function abyss_compliance_disclosure_markup() {
+	return sprintf(
+		'<aside class="art-disclose"><p><strong>%1$s</strong> %2$s</p></aside>',
+		esc_html__( 'Disclosure:', 'abyss' ),
+		esc_html__( 'Some links in this article are affiliate links. If you buy through one, this site may earn a commission at no extra cost to you. Commissions never determine which products are covered or what is said about them.', 'abyss' )
+	);
+}

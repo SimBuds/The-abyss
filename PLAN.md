@@ -247,10 +247,11 @@ is left open and recorded here.
 
 ### Open design questions
 
-- **Fonts load from the Google Fonts CDN.** With Complianz installed for consent,
-  that is a live compliance issue rather than a preference: German courts have
-  held that the endpoint transfers a visitor's IP address without consent.
-  Self-hosting is the fix.
+- ~~Fonts load from the Google Fonts CDN.~~ **Fixed 2026-08-01.** Both families
+  are now self-hosted from `abyss-theme/assets/fonts/`, which is what the
+  live-site requirements asked for all along. Six variable-font files, about
+  226KB, split by `unicode-range` so an English page never fetches the
+  latin-ext subsets. No request leaves the origin for a font any more.
 - **Fixed-`px` type**, as above.
 
 
