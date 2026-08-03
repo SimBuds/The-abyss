@@ -50,6 +50,13 @@ RUN ln -snf /usr/share/zoneinfo/Etc/UTC /etc/localtime \
 # ca-certificates so HTTPS downloads work, curl for verification checks, an
 # editor because configuration is edited in place, openssh-server for access,
 # then the web tier itself.
+#
+# sudo added 2026-08-02. scripts/provision.sh drops to www-data with
+# `sudo -u www-data` for every WP-CLI call, and a real Ubuntu host has sudo,
+# so its absence here was a place the container silently diverged from the
+# server it is meant to mirror. Found by running provision.sh inside the
+# container for the droplet deployment: it died with "sudo: command not
+# found" after creating the database, leaving a half-provisioned site.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates \
@@ -57,6 +64,7 @@ RUN apt-get update \
       less \
       nano \
       openssh-server \
+      sudo \
       apache2 \
       php-fpm \
       php-mysql \

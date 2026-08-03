@@ -8,6 +8,7 @@
 get_header();
 ?>
 <section class="wrap arch__head">
+	<?php abyss_breadcrumbs(); ?>
 	<h1 class="arch__title"><?php
 		/* translators: %s: search query. */
 		printf( esc_html__( 'Results for %s', 'abyss' ), '&ldquo;' . esc_html( get_search_query() ) . '&rdquo;' );

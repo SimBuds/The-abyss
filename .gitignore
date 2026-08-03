@@ -15,6 +15,7 @@ wp-content/uploads/
 wp-content/upgrade/
 wp-content/cache/
 wp-content/plugins/
+__pycache__/
 
 # Database and backup artefacts.
 *.sql

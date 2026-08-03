@@ -1,0 +1,60 @@
+# The-abyss on the portfolio droplet, as a private preview.
+#
+# Standalone, not an override of compose.yaml. Compose *appends* `ports` when
+# you stack files with -f, so an override cannot remove the local file's
+# 0.0.0.0:2222 mapping — it would publish an SSH daemon on the public internet
+# and the file would look like it had closed it. A separate file states exactly
+# what is exposed, and nothing else is.
+#
+#   # ON DROPLET
+#   docker compose -f compose.droplet.yaml up -d --build
+#
+# See DEPLOY-DROPLET.md for the whole procedure.
+
+name: abyss
+
+services:
+  web:
+    build:
+      context: ./docker
+    image: the-abyss-web
+    container_name: abyss-web
+
+    # Survives a droplet reboot. The local file deliberately has no restart
+    # policy; a preview that quietly disappears after an unattended reboot is
+    # worse than one that was never up.
+    restart: unless-stopped
+
+    ports:
+      # 127.0.0.1 only. The host's existing Apache reverse-proxies to this;
+      # nothing reaches the container from outside except through that vhost,
+      # which is where Basic Auth and TLS live. Binding 0.0.0.0 here would put
+      # WordPress on the internet on port 8080, unauthenticated and in cleartext,
+      # regardless of what the vhost says.
+      - "127.0.0.1:8080:80"
+
+      # Port 22 is deliberately NOT published. The container runs sshd as its
+      # main process, which is how the image is built; without a mapping it is
+      # only reachable inside Docker's own network. Use `docker exec` for a
+      # shell — it needs no open port and no key.
+
+    volumes:
+      # The checkout. The theme is a symlink into this, so `git pull` is the
+      # entire deploy.
+      - ./:/workspace
+
+      - wordpress:/var/www
+      - mysql:/var/lib/mysql
+      - sshkeys:/etc/ssh/keys
+
+      # The entrypoint refuses to start without a public key to install, and on
+      # the droplet root's authorized_keys is one — it is already your key, and
+      # it is a valid public-key file. Read-only: nothing in the container has
+      # any reason to write to it. sshd is unreachable from outside anyway; this
+      # exists to satisfy the entrypoint, not to offer a way in.
+      - /root/.ssh/authorized_keys:/tmp/host-key.pub:ro
+
+volumes:
+  wordpress:
+  mysql:
+  sshkeys:

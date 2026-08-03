@@ -26,6 +26,7 @@ if ( is_category() ) {
 }
 ?>
 <section class="wrap arch__head">
+	<?php abyss_breadcrumbs(); ?>
 	<p class="kick"><?php echo esc_html( $abyss_arch_kind ); ?></p>
 	<?php
 	/*

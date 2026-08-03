@@ -54,6 +54,27 @@ Tags: blog, news, two-columns, custom-menu, custom-logo, editor-style, featured-
 
 /* ---------------------------------------------------------------
    2. Base
+
+   Type is in rem, not px, as of 2026-08-02. All 84 font sizes were
+   px, which ignores the reader's browser font-size setting entirely:
+   page zoom still worked, but someone who has set a larger default
+   font because they need one got the same 13px small print as
+   everyone else. That is WCAG 1.4.4 (Resize text), and it was the
+   last known accessibility gap in this theme.
+
+   The conversion is faithful — every size is the same number of
+   pixels at the default 16px root, so nothing was redesigned. What
+   changed is that the sizes now scale.
+
+   Seven sizes are clamp() rather than a flat rem, and they are
+   exactly the seven that previously had breakpoint overrides. The
+   clamps replace those overrides, so the type scales continuously
+   instead of stepping at 1040px and 782px.
+
+   Every clamp keeps a rem term in its preferred value. A clamp whose
+   middle term is vw alone tracks the viewport and ignores the
+   reader's font size, which reintroduces the same failure in a form
+   that is harder to see.
    --------------------------------------------------------------- */
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -65,10 +86,16 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 18px;
+  font-size: clamp(1.0625rem, 1.037rem + 0.11vw, 1.125rem);
   line-height: 1.72;
   text-wrap: pretty;
   -webkit-font-smoothing: antialiased;
+  /* Inherited by everything. At 200% text a display heading is 100px+ and a
+     single long word no longer fits the column, which pushed the home and
+     article pages sideways once type actually started resizing. break-word
+     only breaks when the word would otherwise overflow, so normal text is
+     unaffected. */
+  overflow-wrap: break-word;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -114,14 +141,14 @@ a:hover { color: var(--color-accent); }
 
 .kick {
   font-family: var(--font-heading);
-  font-weight: 700; font-size: 13px; letter-spacing: 0.02em;
+  font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.02em;
   color: var(--color-accent);
   margin: 0;
 }
 
-.sec-title { font-weight: 800; font-size: 34px; }
-.sec-lede { font-size: 18px; color: var(--color-neutral-800); margin-top: 12px; max-width: 58ch; }
-.meta { font-size: 15px; color: var(--color-neutral-700); }
+.sec-title { font-weight: 800; font-size: clamp(1.75rem, 1.59rem + 0.66vw, 2.125rem); }
+.sec-lede { font-size: 1.125rem; color: var(--color-neutral-800); margin-top: 12px; max-width: 58ch; }
+.meta { font-size: 0.9375rem; color: var(--color-neutral-700); }
 .meta a { color: var(--color-neutral-700); }
 .meta strong { color: var(--color-text); font-weight: 600; }
 .byline { display: flex; flex-wrap: wrap; gap: 6px 18px; }
@@ -133,7 +160,7 @@ a:hover { color: var(--color-accent); }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  font-family: var(--font-heading); font-weight: 700; font-size: 15px;
+  font-family: var(--font-heading); font-weight: 700; font-size: 0.9375rem;
   padding: 12px 20px;
   border: 1px solid transparent; border-radius: var(--radius-btn);
   cursor: pointer; white-space: nowrap;
@@ -143,7 +170,7 @@ a:hover { color: var(--color-accent); }
 .btn--primary:hover { background: var(--color-accent-600); border-color: var(--color-accent-600); color: var(--on-accent); }
 .btn--secondary { background: transparent; border-color: var(--color-neutral-400); color: var(--color-text); }
 .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-100); }
-.btn--small { padding: 9px 16px; font-size: 14px; }
+.btn--small { padding: 9px 16px; font-size: 0.875rem; }
 .btn--block { display: flex; width: 100%; }
 /* A disabled button that still looks pressable is a promise the page cannot
    keep. Kept above 3:1 against the card behind it so the boundary stays
@@ -160,7 +187,7 @@ a:hover { color: var(--color-accent); }
   width: 100%;
   border: 1px solid var(--color-neutral-400); border-radius: var(--radius-btn);
   padding: 13px 16px;
-  font-family: var(--font-body); font-size: 16px;
+  font-family: var(--font-body); font-size: 1rem;
   background: var(--color-card); color: var(--color-text);
 }
 .input::placeholder { color: var(--color-neutral-700); }
@@ -171,7 +198,7 @@ a:hover { color: var(--color-accent); }
 
 .pill {
   display: inline-flex; align-items: center;
-  font-family: var(--font-heading); font-weight: 600; font-size: 15px;
+  font-family: var(--font-heading); font-weight: 600; font-size: 0.9375rem;
   padding: 9px 20px; border-radius: 999px;
   border: 1px solid var(--color-neutral-400);
   background: transparent; color: var(--color-text);
@@ -195,11 +222,11 @@ a:hover { color: var(--color-accent); }
 }
 .hdr__logo { display: block; width: 148px; max-width: 100%; }
 .hdr__logo img { width: 100%; height: auto; }
-.hdr__logo-text { font-family: var(--font-heading); font-weight: 800; font-size: 24px; letter-spacing: -0.03em; }
+.hdr__logo-text { font-family: var(--font-heading); font-weight: 800; font-size: 1.5rem; letter-spacing: -0.03em; }
 .hdr__nav ul {
   list-style: none; margin: 0; padding: 0;
   display: flex; justify-content: center; align-items: center; gap: 30px;
-  font-family: var(--font-heading); font-weight: 600; font-size: 15px;
+  font-family: var(--font-heading); font-weight: 600; font-size: 0.9375rem;
 }
 .hdr__nav a { color: var(--color-neutral-800); white-space: nowrap; }
 .hdr__nav a:hover,
@@ -215,7 +242,7 @@ a:hover { color: var(--color-accent); }
 .ticker__label {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
   padding: 0 18px 0 var(--gutter);
-  font-family: var(--font-heading); font-weight: 700; font-size: 13px;
+  font-family: var(--font-heading); font-weight: 700; font-size: 0.8125rem;
   color: var(--color-accent); white-space: nowrap;
 }
 .ticker__dot { width: 8px; height: 8px; border-radius: 999px; background: var(--color-accent); }
@@ -223,9 +250,9 @@ a:hover { color: var(--color-accent); }
 .ticker__run { display: flex; width: max-content; animation: abyss-ticker 68s linear infinite; }
 .ticker:hover .ticker__run { animation-play-state: paused; }
 .ticker__item { display: inline-flex; align-items: baseline; gap: 8px; padding: 0 22px; white-space: nowrap; }
-.ticker__k { font-size: 14px; color: var(--color-neutral-700); }
-.ticker__v { font-family: var(--font-heading); font-weight: 700; font-size: 14px; }
-.ticker__d { font-size: 14px; color: var(--color-accent); }
+.ticker__k { font-size: 0.875rem; color: var(--color-neutral-700); }
+.ticker__v { font-family: var(--font-heading); font-weight: 700; font-size: 0.875rem; }
+.ticker__d { font-size: 0.875rem; color: var(--color-accent); }
 .ticker__d.is-down { color: var(--color-negative); }
 @keyframes abyss-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @media (prefers-reduced-motion: reduce) {
@@ -256,10 +283,10 @@ a:hover { color: var(--color-accent); }
 .thumb--pick { aspect-ratio: 4 / 3; border-radius: 0; }
 
 .story { display: block; }
-.story__title { font-family: var(--font-heading); font-weight: 700; font-size: 21px; line-height: 1.28; margin-top: 10px; }
+.story__title { font-family: var(--font-heading); font-weight: 700; font-size: 1.3125rem; line-height: 1.28; margin-top: 10px; }
 .story:hover .story__title { color: var(--color-accent); }
-.story__dek { font-size: 16px; line-height: 1.6; color: var(--color-neutral-800); margin-top: 10px; }
-.story__meta { font-size: 14px; color: var(--color-neutral-700); margin-top: 12px; }
+.story__dek { font-size: 1rem; line-height: 1.6; color: var(--color-neutral-800); margin-top: 10px; }
+.story__meta { font-size: 0.875rem; color: var(--color-neutral-700); margin-top: 12px; }
 .story .kick { margin-top: 18px; }
 
 .g3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px 28px; }
@@ -271,14 +298,20 @@ a:hover { color: var(--color-accent); }
 .g3--fit { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
 .g4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr); gap: 36px; align-items: start; }
+/* No rail, so no second column. The lead is capped rather than allowed to
+   run the full 1060px, because a 1060px measure is not a readable one. */
+.hero--solo { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
 .split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.9fr); gap: 40px; align-items: center; }
 .artgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 290px); gap: 44px; align-items: start; }
+/* min-width: 0 so a wide code block or table inside .prose shrinks the
+   column rather than pushing the grid wider than its container. */
+.artcol { min-width: 0; }
 
 .sec-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; }
 
 /* Hero lead */
-.lead__title { font-weight: 800; font-size: 46px; line-height: 1.12; margin-top: 14px; }
-.lead__dek { font-size: 19px; line-height: 1.62; color: var(--color-neutral-800); margin-top: 20px; max-width: 60ch; }
+.lead__title { font-weight: 800; font-size: clamp(1.9375rem, 1.55rem + 1.66vw, 2.875rem); line-height: 1.12; margin-top: 14px; }
+.lead__dek { font-size: 1.1875rem; line-height: 1.62; color: var(--color-neutral-800); margin-top: 20px; max-width: 60ch; }
 
 /* Rate snapshot */
 .snap { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
@@ -286,17 +319,23 @@ a:hover { color: var(--color-accent); }
   display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
   border-bottom: 1px solid var(--color-divider); padding-bottom: 16px;
 }
-.snap__k { font-family: var(--font-heading); font-weight: 600; font-size: 16px; }
-.snap__sub { font-size: 14px; color: var(--color-neutral-700); }
+/* The label column shrinks instead of forcing the row to wrap. Without a zero
+   basis the flex item is sized from its longest line, so at 200% text the row
+   pushed the page sideways; with flex-wrap instead, the value dropped to its
+   own line at ordinary sizes too, which is not the design. This shrinks the
+   label, lets its text break, and leaves the value where it belongs. */
+.snap li > span:first-child { flex: 1 1 0%; min-width: 0; }
+.snap__k { font-family: var(--font-heading); font-weight: 600; font-size: 1rem; }
+.snap__sub { font-size: 0.875rem; color: var(--color-neutral-700); }
 .snap__v {
-  font-family: var(--font-heading); font-weight: 800; font-size: 22px;
+  font-family: var(--font-heading); font-weight: 800; font-size: 1.375rem;
   color: var(--color-accent); white-space: nowrap;
 }
 
 /* Lane cards */
 .lane { display: block; padding: 30px 28px 28px; }
-.lane__title { font-weight: 700; font-size: 24px; line-height: 1.25; margin-top: 12px; }
-.lane__copy { font-size: 16px; line-height: 1.6; color: var(--color-neutral-800); margin-top: 10px; }
+.lane__title { font-weight: 700; font-size: 1.5rem; line-height: 1.25; margin-top: 12px; }
+.lane__copy { font-size: 1rem; line-height: 1.6; color: var(--color-neutral-800); margin-top: 10px; }
 .lane__links { list-style: none; margin: 20px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 /* Not styled as links. The whole card is one anchor pointing at the category,
    so these titles cannot be anchors themselves — nesting them is invalid HTML.
@@ -304,7 +343,7 @@ a:hover { color: var(--color-accent); }
    are not: clicking "SpaceX Tanking Past IPO Price" went to Finance. A leading
    marker says "here is what is inside" without promising a click. */
 .lane__links li {
-  font-size: 16px; color: var(--color-neutral-800);
+  font-size: 1rem; color: var(--color-neutral-800);
   padding-left: 18px; position: relative;
 }
 .lane__links li::before {
@@ -316,11 +355,11 @@ a:hover { color: var(--color-accent); }
 /* Picks */
 .pick { display: block; overflow: hidden; }
 .pick__body { display: block; padding: 20px 22px 24px; }
-.pick__title { font-family: var(--font-heading); font-weight: 700; font-size: 19px; line-height: 1.3; margin-top: 8px; }
-.pick__dek { font-size: 15px; line-height: 1.6; color: var(--color-neutral-800); margin-top: 8px; }
+.pick__title { font-family: var(--font-heading); font-weight: 700; font-size: 1.1875rem; line-height: 1.3; margin-top: 8px; }
+.pick__dek { font-size: 0.9375rem; line-height: 1.6; color: var(--color-neutral-800); margin-top: 8px; }
 .pick__price { display: flex; align-items: baseline; gap: 10px; margin-top: 14px; }
-.pick__price b { font-family: var(--font-heading); font-weight: 800; font-size: 17px; }
-.pick__price span { font-size: 14px; color: var(--color-neutral-700); }
+.pick__price b { font-family: var(--font-heading); font-weight: 800; font-size: 1.0625rem; }
+.pick__price span { font-size: 0.875rem; color: var(--color-neutral-700); }
 
 /* ---------------------------------------------------------------
    7. Comparison table
@@ -331,24 +370,24 @@ a:hover { color: var(--color-accent); }
 .rates { width: 100%; border-collapse: collapse; }
 .rates th, .rates td { text-align: left; padding: 18px 20px; border-bottom: 1px solid var(--color-divider); }
 .rates thead th {
-  font-family: var(--font-heading); font-weight: 600; font-size: 14px;
+  font-family: var(--font-heading); font-weight: 600; font-size: 0.875rem;
   color: var(--color-neutral-700);
   background: var(--color-surface);
   white-space: nowrap;
 }
 .rates tbody tr:last-child td { border-bottom: 0; }
 .rates td:last-child { white-space: nowrap; text-align: right; }
-.rates__bank { font-family: var(--font-heading); font-weight: 600; font-size: 16px; }
-.rates__apy { font-family: var(--font-heading); font-weight: 800; font-size: 19px; }
+.rates__bank { font-family: var(--font-heading); font-weight: 600; font-size: 1rem; }
+.rates__apy { font-family: var(--font-heading); font-weight: 800; font-size: 1.1875rem; }
 .rates__apy.is-best { color: var(--color-accent); }
-.rates__note { color: var(--color-neutral-800); font-size: 16px; }
+.rates__note { color: var(--color-neutral-800); font-size: 1rem; }
 .sortbtn {
   background: none; border: 0; padding: 0; font: inherit; color: inherit;
   cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
 }
 .sortbtn:hover { color: var(--color-accent); }
-.sortbtn__arrow { font-size: 12px; }
-.smallprint { font-size: 14px; line-height: 1.6; color: var(--color-neutral-700); margin-top: 16px; max-width: 80ch; }
+.sortbtn__arrow { font-size: 0.75rem; }
+.smallprint { font-size: 0.875rem; line-height: 1.6; color: var(--color-neutral-700); margin-top: 16px; max-width: 80ch; }
 
 /* ---------------------------------------------------------------
    8. Newsletter
@@ -356,23 +395,23 @@ a:hover { color: var(--color-accent); }
 
 .news { background: var(--color-accent); color: var(--on-accent); }
 .news__in { text-align: center; }
-.news__title { font-weight: 800; font-size: 40px; line-height: 1.15; margin: 0 auto; max-width: 20ch; }
-.news__copy { font-size: 18px; line-height: 1.65; margin: 18px auto 0; max-width: 52ch; color: var(--on-accent-soft); }
+.news__title { font-weight: 800; font-size: clamp(2rem, 1.79rem + 0.88vw, 2.5rem); line-height: 1.15; margin: 0 auto; max-width: 20ch; }
+.news__copy { font-size: 1.125rem; line-height: 1.65; margin: 18px auto 0; max-width: 52ch; color: var(--on-accent-soft); }
 .news__form { max-width: 460px; margin: 32px auto 0; text-align: left; }
 .news__card { background: var(--color-card); color: var(--color-text); border-radius: var(--radius); padding: 28px; }
-.news__label { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 15px; margin-bottom: 10px; }
-.news__fine { font-size: 14px; line-height: 1.55; color: var(--color-neutral-700); margin-top: 14px; }
+.news__label { display: block; font-family: var(--font-heading); font-weight: 600; font-size: 0.9375rem; margin-bottom: 10px; }
+.news__fine { font-size: 0.875rem; line-height: 1.55; color: var(--color-neutral-700); margin-top: 14px; }
 
 /* ---------------------------------------------------------------
    9. Disclosure
    --------------------------------------------------------------- */
 
 .disclose { background: var(--color-surface); border-top: 1px solid var(--color-divider); }
-.disclose__in { padding-top: 14px; padding-bottom: 14px; font-size: 13px; color: var(--color-neutral-700); }
+.disclose__in { padding-top: 14px; padding-bottom: 14px; font-size: 0.8125rem; color: var(--color-neutral-700); }
 .disclose__in a { text-decoration: underline; text-underline-offset: 2px; }
 .disclose--loud { background: var(--color-accent-100); border-top: 1px solid var(--color-accent-200); }
 .disclose--loud .disclose__in {
-  padding-top: 20px; padding-bottom: 20px; font-size: 15px;
+  padding-top: 20px; padding-bottom: 20px; font-size: 0.9375rem;
   color: var(--color-neutral-800);
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
 }
@@ -391,10 +430,10 @@ a:hover { color: var(--color-accent); }
   padding: 2px 0 2px 16px;
   border-left: 3px solid var(--color-accent);
 }
-.art-disclose p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-neutral-800); }
+.art-disclose p { margin: 0; font-size: 0.875rem; line-height: 1.6; color: var(--color-neutral-800); }
 .art-disclose strong { color: var(--color-accent); }
 
-.disclose__badge { font-family: var(--font-heading); font-weight: 700; font-size: 14px; color: var(--color-accent); }
+.disclose__badge { font-family: var(--font-heading); font-weight: 700; font-size: 0.875rem; color: var(--color-accent); }
 
 /* ---------------------------------------------------------------
    10. Article
@@ -402,28 +441,28 @@ a:hover { color: var(--color-accent); }
 
 .art { padding-top: 56px; }
 .art__head { max-width: 44rem; }
-.art__title { font-weight: 800; font-size: 52px; line-height: 1.1; margin-top: 16px; }
-.art__dek { font-size: 20px; line-height: 1.6; color: var(--color-neutral-800); margin-top: 20px; }
+.art__title { font-weight: 800; font-size: clamp(2rem, 1.48rem + 2.21vw, 3.25rem); line-height: 1.1; margin-top: 16px; }
+.art__dek { font-size: 1.25rem; line-height: 1.6; color: var(--color-neutral-800); margin-top: 20px; }
 .art__byline { margin-top: 24px; }
-.art figcaption, .wp-caption-text { font-size: 14px; color: var(--color-neutral-700); margin-top: 12px; }
+.art figcaption, .wp-caption-text { font-size: 0.875rem; color: var(--color-neutral-700); margin-top: 12px; }
 
 .prose { max-width: 44rem; }
 .prose > * + * { margin-top: 26px; }
-.prose p, .prose li { font-size: 19px; line-height: 1.72; }
-.prose h2 { font-weight: 700; font-size: 28px; line-height: 1.25; margin-top: 40px; }
-.prose h3 { font-weight: 700; font-size: 22px; margin-top: 32px; }
+.prose p, .prose li { font-size: clamp(1.125rem, 1.1rem + 0.11vw, 1.1875rem); line-height: 1.72; }
+.prose h2 { font-weight: 700; font-size: 1.75rem; line-height: 1.25; margin-top: 40px; }
+.prose h3 { font-weight: 700; font-size: 1.375rem; margin-top: 32px; }
 .prose ul, .prose ol { padding-left: 1.3em; }
 .prose li + li { margin-top: 10px; }
 .prose a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
 .prose blockquote {
   margin: 34px 0; padding-left: 22px;
   border-left: 3px solid var(--color-accent);
-  font-family: var(--font-heading); font-weight: 700; font-size: 24px; line-height: 1.4;
+  font-family: var(--font-heading); font-weight: 700; font-size: 1.5rem; line-height: 1.4;
 }
 .prose img, .prose figure { border-radius: var(--radius); overflow: hidden; }
 .prose table { width: 100%; border-collapse: collapse; }
 .prose th, .prose td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--color-divider); }
-.prose code { background: var(--color-surface); padding: 2px 6px; border-radius: 6px; font-size: 16px; }
+.prose code { background: var(--color-surface); padding: 2px 6px; border-radius: 6px; font-size: 1rem; }
 .prose pre {
   background: var(--color-surface); border: 1px solid var(--color-divider);
   border-radius: var(--radius); padding: 20px 22px; overflow-x: auto;
@@ -431,15 +470,15 @@ a:hover { color: var(--color-accent); }
 .prose pre code { background: none; padding: 0; }
 
 .plainly { background: var(--color-accent-100); border-radius: var(--radius); padding: 26px 28px; }
-.plainly__title { font-family: var(--font-heading); font-weight: 700; font-size: 21px; line-height: 1.35; margin-top: 10px; }
-.plainly__copy { font-size: 17px; line-height: 1.65; color: var(--color-neutral-800); margin-top: 10px; }
+.plainly__title { font-family: var(--font-heading); font-weight: 700; font-size: 1.3125rem; line-height: 1.35; margin-top: 10px; }
+.plainly__copy { font-size: 1.0625rem; line-height: 1.65; color: var(--color-neutral-800); margin-top: 10px; }
 
 .rail { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 24px; }
-.rail__title { font-family: var(--font-heading); font-weight: 700; font-size: 17px; }
+.rail__title { font-family: var(--font-heading); font-weight: 700; font-size: 1.0625rem; }
 .rail__list { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
 .rail__list li { border-top: 1px solid var(--color-divider); padding-top: 16px; }
-.rail__list .kick { font-size: 12px; margin: 0; }
-.rail__list .story__title { font-weight: 600; font-size: 16px; line-height: 1.35; margin-top: 6px; }
+.rail__list .kick { font-size: 0.75rem; margin: 0; }
+.rail__list .story__title { font-weight: 600; font-size: 1rem; line-height: 1.35; margin-top: 6px; }
 .rail__cta { background: var(--color-accent-100); border-radius: var(--radius); padding: 24px; }
 .rail__cta p + p { margin-top: 10px; }
 
@@ -450,14 +489,14 @@ a:hover { color: var(--color-accent); }
 .ftr { border-top: 1px solid var(--color-divider); }
 .ftr__grid { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 32px; }
 .ftr__logo { display: block; width: 160px; max-width: 100%; }
-.ftr__about { font-size: 16px; line-height: 1.6; color: var(--color-neutral-800); margin-top: 12px; max-width: 34ch; }
-.ftr__h { font-family: var(--font-heading); font-weight: 700; font-size: 15px; margin-bottom: 14px; }
+.ftr__about { font-size: 1rem; line-height: 1.6; color: var(--color-neutral-800); margin-top: 12px; max-width: 34ch; }
+.ftr__h { font-family: var(--font-heading); font-weight: 700; font-size: 0.9375rem; margin-bottom: 14px; }
 .ftr__col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.ftr__col a { font-size: 16px; color: var(--color-neutral-800); }
+.ftr__col a { font-size: 1rem; color: var(--color-neutral-800); }
 .ftr__legal {
   border-top: 1px solid var(--color-divider); margin-top: 44px; padding-top: 22px;
   display: flex; flex-wrap: wrap; gap: 8px 24px;
-  font-size: 14px; color: var(--color-neutral-700);
+  font-size: 0.875rem; color: var(--color-neutral-700);
 }
 .ftr__legal ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 24px; }
 
@@ -468,14 +507,16 @@ a:hover { color: var(--color-accent); }
 .pagination { margin-top: 48px; display: flex; gap: 8px; flex-wrap: wrap; }
 .pagination .page-numbers {
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 42px; height: 42px; padding: 0 12px;
+  /* min-height, not height: the label inside is text, and a fixed box clips it
+     once the reader's font size grows. 42px stays the touch-target floor. */
+  min-width: 42px; min-height: 42px; padding: 6px 12px;
   border: 1px solid var(--color-divider); border-radius: var(--radius-btn);
-  font-family: var(--font-heading); font-weight: 600; font-size: 15px;
+  font-family: var(--font-heading); font-weight: 600; font-size: 0.9375rem;
 }
 .pagination .page-numbers.current { background: var(--color-accent); border-color: var(--color-accent); color: var(--on-accent); }
 .arch__head { padding-top: 64px; }
 .arch__title {
-  font-weight: 800; font-size: 42px;
+  font-weight: 800; font-size: clamp(1.75rem, 1.39rem + 1.55vw, 2.625rem);
   /* A long term name at 42px has no break opportunity and pushed the document
      3px wider than a 390px viewport, which scrolls the whole page sideways for
      3px of heading. */
@@ -495,32 +536,19 @@ a:hover { color: var(--color-accent); }
   .rail { position: static; }
   .ftr__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hdr__in { grid-template-columns: auto minmax(0, 1fr) auto; padding: 12px 20px; }
-  .hdr__nav ul { gap: 16px; font-size: 14px; flex-wrap: wrap; }
+  .hdr__nav ul { gap: 16px; font-size: 0.875rem; flex-wrap: wrap; }
   .hdr__logo { width: 120px; }
-  .lead__title { font-size: 38px; }
-  .art__title { font-size: 40px; }
-  .news__title { font-size: 32px; }
 }
 
 @media (max-width: 782px) {
-  body { font-size: 17px; }
   .g3, .g4 { grid-template-columns: minmax(0, 1fr); }
-  .sec-title { font-size: 28px; }
-  .lead__title { font-size: 31px; }
-  .art__title { font-size: 32px; }
-  .prose p, .prose li { font-size: 18px; }
-  .hdr__in { grid-template-columns: 1fr auto; row-gap: 12px; }
-  .hdr__toggle {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 42px; height: 42px; border: 1px solid var(--color-divider);
-    border-radius: var(--radius-btn); background: transparent; color: var(--color-text);
-    cursor: pointer;
-  }
-  .hdr__nav { grid-column: 1 / -1; display: none; }
-  .hdr__nav.is-open { display: block; }
-  .hdr__nav ul { flex-direction: column; align-items: flex-start; gap: 4px; padding-bottom: 10px; }
-  .hdr__nav a { display: block; padding: 8px 0; }
-  .hdr__cta { display: none; }
+  /* Cinematic ratios stop being cinematic on a phone. 21/9 across a 334px
+     column is a 143px band, and since every source image here is between 1.56
+     and 1.78, object-fit was cropping most of the subject away rather than
+     framing it. 3/2 is the card ratio, so all imagery on mobile shares one
+     shape and crops the sides instead of the middle. */
+  .thumb--hero,
+  .thumb--wide { aspect-ratio: 3 / 2; }
   .rates th, .rates td { padding: 14px 16px; }
 }
 
@@ -551,6 +579,31 @@ a:hover { color: var(--color-accent); }
 .prose > .alignleft  { float: left;  margin: 6px 28px 20px 0; }
 .prose > .alignright { float: right; margin: 6px 0 20px 28px; }
 
+/* The header collapses to a hamburger on its own breakpoint, not the layout
+   one. Measured rather than guessed: brand 148 + the three nav links 233 +
+   the CTA 137 + 40 padding + 48 of column gaps = 606px, so anything above
+   ~640px has room for the real navigation. It was collapsing at 782px, which
+   hid the nav on every tablet in portrait and every large phone in landscape
+   for no reason — a 768px iPad got a hamburger with 160px to spare.
+
+   This number is content-dependent. Three menu items fit at 640px; a fourth
+   costs roughly another 90px. Re-measure if the menu grows. */
+@media (max-width: 640px) {
+  .hdr__in { grid-template-columns: 1fr auto; row-gap: 12px; }
+  .hdr__toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; border: 1px solid var(--color-divider);
+    border-radius: var(--radius-btn); background: transparent; color: var(--color-text);
+    cursor: pointer;
+  }
+  .hdr__nav { grid-column: 1 / -1; display: none; }
+  .hdr__nav.is-open { display: block; }
+  .hdr__nav ul { flex-direction: column; align-items: flex-start; gap: 4px; padding-bottom: 10px; }
+  .hdr__nav a { display: block; padding: 8px 0; }
+  .hdr__cta { display: none; }
+
+}
+
 @media (max-width: 600px) {
   .prose > .alignleft,
   .prose > .alignright { float: none; max-width: 100%; margin-inline: 0; }
@@ -564,7 +617,7 @@ a:hover { color: var(--color-accent); }
    sit flush left under the image rather than centred. */
 .prose figcaption,
 .prose .wp-caption-text {
-  margin-top: 10px; font-size: 14px; line-height: 1.5;
+  margin-top: 10px; font-size: 0.875rem; line-height: 1.5;
   color: var(--color-neutral-700); text-align: left;
 }
 
@@ -588,7 +641,7 @@ a:hover { color: var(--color-accent); }
 }
 .prose .wp-block-pullquote blockquote { border: 0; padding-left: 0; margin: 0; }
 .prose cite {
-  display: block; margin-top: 10px; font-size: 14px;
+  display: block; margin-top: 10px; font-size: 0.875rem;
   font-style: normal; color: var(--color-neutral-700);
 }
 
@@ -597,7 +650,7 @@ a:hover { color: var(--color-accent); }
    a theme-placed one cannot look like two different systems. */
 .prose .wp-block-button__link {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  font-family: var(--font-heading); font-weight: 700; font-size: 15px;
+  font-family: var(--font-heading); font-weight: 700; font-size: 0.9375rem;
   padding: 12px 20px; border-radius: var(--radius-btn);
   background: var(--color-accent); color: var(--on-accent); text-decoration: none;
 }
@@ -632,7 +685,7 @@ a:hover { color: var(--color-accent); }
 #comments { margin-top: 8px; }
 
 .comment-reply-title {
-  font-family: var(--font-heading); font-weight: 700; font-size: 24px;
+  font-family: var(--font-heading); font-weight: 700; font-size: 1.5rem;
   line-height: 1.25; margin: 0;
 }
 #respond { margin-top: 40px; }
@@ -640,7 +693,7 @@ a:hover { color: var(--color-accent); }
 .comment-notes,
 .logged-in-as,
 .comment-form-cookies-consent label {
-  font-size: 14px; color: var(--color-neutral-700);
+  font-size: 0.875rem; color: var(--color-neutral-700);
 }
 .comment-notes, .logged-in-as { margin: 8px 0 0; }
 
@@ -649,7 +702,7 @@ a:hover { color: var(--color-accent); }
 .comment-form p { margin: 20px 0 0; }
 .comment-form label {
   display: block; margin-bottom: 8px;
-  font-family: var(--font-heading); font-weight: 600; font-size: 15px;
+  font-family: var(--font-heading); font-weight: 600; font-size: 0.9375rem;
   color: var(--color-text);
 }
 
@@ -660,7 +713,7 @@ a:hover { color: var(--color-accent); }
   width: 100%; max-width: 100%;
   border: 1px solid var(--color-neutral-400); border-radius: var(--radius-btn);
   padding: 13px 16px;
-  font-family: var(--font-body); font-size: 16px;
+  font-family: var(--font-body); font-size: 1rem;
   background: var(--color-card); color: var(--color-text);
 }
 /* 16px, not smaller: iOS Safari zooms the page on focus for anything under
@@ -696,21 +749,153 @@ a:hover { color: var(--color-accent); }
 .comment-author { display: flex; align-items: center; gap: 10px; }
 .comment-author .avatar { border-radius: 50%; }
 .comment-author .fn {
-  font-family: var(--font-heading); font-weight: 700; font-size: 16px; font-style: normal;
+  font-family: var(--font-heading); font-weight: 700; font-size: 1rem; font-style: normal;
 }
 /* "says" is core's screen-reader connective and reads as noise when shown. */
 .comment-author .says { display: none; }
 
-.comment-meta, .comment-metadata { font-size: 14px; color: var(--color-neutral-700); margin-top: 4px; }
-.comment-content { margin-top: 12px; font-size: 16px; line-height: 1.65; }
+.comment-meta, .comment-metadata { font-size: 0.875rem; color: var(--color-neutral-700); margin-top: 4px; }
+.comment-content { margin-top: 12px; font-size: 1rem; line-height: 1.65; }
 .comment-content p { margin-top: 12px; }
 .comment-content p:first-child { margin-top: 0; }
 
-.reply { margin-top: 12px; font-size: 14px; }
+.reply { margin-top: 12px; font-size: 0.875rem; }
 
 /* A comment awaiting approval is the one case where the visitor needs telling
    that nothing is broken: their comment posted and is simply not public yet. */
 .comment-awaiting-moderation {
   display: block; margin-top: 10px;
-  font-size: 14px; color: var(--color-accent);
+  font-size: 0.875rem; color: var(--color-accent);
+}
+
+/* ---------------------------------------------------------------
+   16. Article furniture
+   Added 2026-08-02. Breadcrumbs, tags, share, author box, table of
+   contents and prev/next. All of it markup from
+   inc/article-parts.php, plus core's the_tags() and
+   the_post_navigation().
+   --------------------------------------------------------------- */
+
+/* --- Breadcrumbs ----------------------------------------------- */
+
+.crumbs { padding-top: 40px; }
+.crumbs ol {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 0.875rem; color: var(--color-neutral-700);
+}
+/* The separator is generated, not authored, so it is never selected when a
+   reader copies the trail and never read out as a word by a screen reader. */
+.crumbs li + li::before {
+  content: "/"; margin-right: 8px; color: var(--color-neutral-400);
+}
+.crumbs a { color: var(--color-neutral-700); text-decoration: underline; text-underline-offset: 3px; }
+.crumbs a:hover { color: var(--color-accent); }
+.crumbs [aria-current="page"] { color: var(--color-text); }
+
+/* --- Tags ------------------------------------------------------ */
+
+.tags {
+  margin-top: 40px; padding-top: 24px;
+  border-top: 1px solid var(--color-divider);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 0.9375rem;
+}
+.tags__label {
+  font-family: var(--font-heading); font-weight: 600;
+  color: var(--color-neutral-700); margin-right: 4px;
+}
+.tags a {
+  display: inline-flex; align-items: center;
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--color-neutral-400);
+  color: var(--color-text); font-size: 0.875rem;
+}
+.tags a:hover { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-100); }
+
+/* --- Share ----------------------------------------------------- */
+
+.share { margin-top: 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.share__label {
+  font-family: var(--font-heading); font-weight: 600; font-size: 0.9375rem;
+  color: var(--color-neutral-700);
+}
+.share__list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.share__link {
+  display: inline-flex; align-items: center;
+  /* 44px minimum touch target, which the padding alone does not guarantee once
+     the label is short. */
+  min-height: 44px; padding: 6px 14px;
+  border: 1px solid var(--color-divider); border-radius: var(--radius-btn);
+  font-size: 0.875rem; color: var(--color-neutral-800);
+}
+.share__link:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+/* --- Author box ------------------------------------------------ */
+
+.authorbox {
+  margin-top: 40px; padding: 24px;
+  background: var(--color-card); border: 1px solid var(--color-divider);
+  border-radius: var(--radius);
+  display: flex; gap: 20px; align-items: flex-start;
+}
+.authorbox__avatar { flex: none; }
+.authorbox__initials {
+  display: flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--color-accent); color: var(--on-accent);
+  font-family: var(--font-heading); font-weight: 800; font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+.authorbox__name {
+  font-family: var(--font-heading); font-weight: 700; font-size: 1.125rem;
+  margin-top: 6px;
+}
+.authorbox__bio { font-size: 1rem; line-height: 1.6; color: var(--color-neutral-800); margin-top: 8px; }
+
+/* --- Table of contents ----------------------------------------- */
+
+.toc {
+  background: var(--color-card); border: 1px solid var(--color-divider);
+  border-radius: var(--radius); padding: 20px 22px;
+  margin-bottom: 24px;
+}
+.toc__list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.toc__item a {
+  font-size: 0.9375rem; line-height: 1.45; color: var(--color-neutral-800);
+  text-decoration: none;
+}
+.toc__item a:hover { color: var(--color-accent); }
+/* h3s are nested under their h2 by indent alone. A second <ol> would be more
+   correct structurally, but the regex that builds this list reads headings in
+   document order and does not know which h2 an h3 belongs to. */
+.toc__item--h3 { padding-left: 16px; }
+
+/* --- Prev / next ----------------------------------------------- */
+
+.postnav { margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--color-divider); }
+.postnav .nav-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+/* When only one of the two exists, core omits the other div entirely, so the
+   remaining one would stretch across both columns. */
+.postnav .nav-links > :only-child { grid-column: span 1; }
+.postnav .nav-next { text-align: right; }
+.postnav a { display: block; }
+.postnav__dir {
+  display: block;
+  font-family: var(--font-heading); font-weight: 700; font-size: 0.8125rem;
+  letter-spacing: 0.02em; color: var(--color-accent);
+}
+.postnav__title {
+  display: block; margin-top: 6px;
+  font-family: var(--font-heading); font-weight: 700; font-size: 1.0625rem;
+  line-height: 1.3; color: var(--color-text);
+}
+.postnav a:hover .postnav__title { color: var(--color-accent); }
+
+.rail__widgets { display: flex; flex-direction: column; gap: 20px; margin-bottom: 24px; }
+
+@media (max-width: 640px) {
+  .postnav .nav-links { grid-template-columns: minmax(0, 1fr); }
+  .postnav .nav-next { text-align: left; }
+  .authorbox { flex-direction: column; gap: 14px; }
 }

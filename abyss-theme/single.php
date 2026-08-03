@@ -13,6 +13,8 @@ while ( have_posts() ) :
 	$affiliate = '1' === get_post_meta( get_the_ID(), '_abyss_post_affiliate', true );
 	?>
 	<article class="wrap art">
+		<?php abyss_breadcrumbs(); ?>
+
 		<header class="art__head">
 			<?php if ( abyss_kicker() ) : ?>
 				<p class="kick"><?php echo esc_html( abyss_kicker() ); ?></p>
@@ -41,7 +43,17 @@ while ( have_posts() ) :
 		<?php endif; ?>
 
 		<div class="artgrid" style="padding-top:48px">
-			<div class="prose">
+			<?php
+			/*
+			 * The column wrapper exists so the furniture below can sit outside
+			 * .prose while staying in the same grid column. It was inside .prose
+			 * at first, which meant `.prose a` styled the share links and the
+			 * author bio as if they were links the author had written in the
+			 * body: accent-coloured and underlined.
+			 */
+			?>
+			<div class="artcol">
+				<div class="prose">
 				<?php
 				/*
 				 * The affiliate disclosure is not rendered here. It is prepended
@@ -59,9 +71,33 @@ while ( have_posts() ) :
 					'after'  => '</nav>',
 				) );
 				?>
+
+				</div>
+
+				<?php
+				/* Tags below the article, not in the header: they are a way out
+				   of the piece, not a label on it. */
+				the_tags( '<p class="tags"><span class="tags__label">' . esc_html__( 'Filed under', 'abyss' ) . '</span>', '', '</p>' );
+				?>
+
+				<?php abyss_share_links(); ?>
+				<?php abyss_author_box(); ?>
 			</div>
 
 			<aside class="rail">
+				<?php abyss_table_of_contents(); ?>
+
+				<?php
+				/* An editable slot, so the rail is not code-only. Rendered above
+				   the fixed blocks below, which stay because a brand-new site
+				   with no widgets configured should still have a usable rail. */
+				if ( is_active_sidebar( 'abyss-rail' ) ) {
+					echo '<div class="rail__widgets">';
+					dynamic_sidebar( 'abyss-rail' );
+					echo '</div>';
+				}
+				?>
+
 				<?php
 				$related = new WP_Query( array(
 					'posts_per_page'      => 4,
@@ -102,6 +138,20 @@ while ( have_posts() ) :
 				</div>
 			</aside>
 		</div>
+		<?php
+		/*
+		 * Prev/next by date. This is the one that always has somewhere to go —
+		 * the "Keep reading" block in the rail is scoped to the post's own
+		 * categories, and on a young site with one post in a category it
+		 * renders nothing at all, leaving the article a dead end.
+		 */
+		the_post_navigation( array(
+			'class'              => 'postnav',
+			'prev_text'          => '<span class="postnav__dir">' . esc_html__( 'Previous', 'abyss' ) . '</span><span class="postnav__title">%title</span>',
+			'next_text'          => '<span class="postnav__dir">' . esc_html__( 'Next', 'abyss' ) . '</span><span class="postnav__title">%title</span>',
+			'screen_reader_text' => __( 'More articles', 'abyss' ),
+		) );
+		?>
 	</article>
 
 	<?php

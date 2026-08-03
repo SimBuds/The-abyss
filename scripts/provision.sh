@@ -40,12 +40,35 @@ SKIPS=0
 
 SITE_DOMAIN="${SITE_DOMAIN:-}"
 SITE_TITLE="${SITE_TITLE:-The-abyss}"
+
+# The scheme WP_HOME and WP_SITEURL are pinned to. https everywhere a browser
+# will actually reach this over the network, which is the default and should
+# stay the default. The one legitimate reason to set it to http is a site that
+# is only ever reached through an SSH tunnel on localhost, where there is no
+# certificate and no need for one.
+SITE_SCHEME="${SITE_SCHEME:-https}"
 ADMIN_USER="${ADMIN_USER:-}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-}"
 
 WP_DIR="/var/www/the-abyss"
 DB_NAME="${DB_NAME:-theabyss}"
 DB_USER="${DB_USER:-theabyss}"
+
+# SKIP_PACKAGES=1 skips the apt block. Set it when running this inside the
+# project's own container, where the image already carries the whole stack.
+# Re-running apt there is not merely redundant: mysql-server's postinst wants
+# to start the server, which works during a docker build and fails through
+# docker exec, so an unlucky apt upgrade turns a working container into a
+# broken one. Everything after the apt block is identical either way.
+SKIP_PACKAGES="${SKIP_PACKAGES:-}"
+
+# BEHIND_TLS_PROXY=1 when something else terminates HTTPS and forwards plain
+# HTTP here — the reverse-proxy setup on the portfolio droplet does exactly
+# that. Without it WordPress sees http, compares that to an https WP_HOME, and
+# issues a canonical redirect to https, which the proxy forwards back as http:
+# an infinite redirect loop that looks like a DNS or certificate fault and is
+# neither.
+BEHIND_TLS_PROXY="${BEHIND_TLS_PROXY:-}"
 
 # The repository, so the theme can be deployed from it. Defaults to the checkout
 # this script is being run from.
@@ -112,16 +135,20 @@ done
 # cost another one on the server.
 
 log "Installing packages"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -qq
-apt-get install -y -qq --no-install-recommends \
-	ca-certificates curl less nano \
-	apache2 \
-	php-fpm php-mysql php-curl php-xml php-mbstring php-zip php-gd php-intl \
-	mysql-server \
-	certbot python3-certbot-apache \
-	fail2ban \
-	ufw
+if [ -n "$SKIP_PACKAGES" ]; then
+	skipped "packages: SKIP_PACKAGES is set, the image already carries the stack"
+else
+	export DEBIAN_FRONTEND=noninteractive
+	apt-get update -qq
+	apt-get install -y -qq --no-install-recommends \
+		ca-certificates curl less nano \
+		apache2 \
+		php-fpm php-mysql php-curl php-xml php-mbstring php-zip php-gd php-intl \
+		mysql-server \
+		certbot python3-certbot-apache \
+		fail2ban \
+		ufw
+fi
 
 # --- apache -----------------------------------------------------------------
 
@@ -235,8 +262,8 @@ if [ ! -f "$WP_DIR/wp-config.php" ]; then
 	# Pinned by constant rather than left in the database, so the site cannot be
 	# half-migrated by an option row someone forgot. The container does the same
 	# against http://localhost:8080.
-	wp_run config set WP_HOME    "https://$SITE_DOMAIN" --type=constant
-	wp_run config set WP_SITEURL "https://$SITE_DOMAIN" --type=constant
+	wp_run config set WP_HOME    "$SITE_SCHEME://$SITE_DOMAIN" --type=constant
+	wp_run config set WP_SITEURL "$SITE_SCHEME://$SITE_DOMAIN" --type=constant
 
 	# File edit from wp-admin is a code-execution path for any compromised admin
 	# account, and this theme is deployed from Git rather than edited in place.
@@ -244,12 +271,55 @@ if [ ! -f "$WP_DIR/wp-config.php" ]; then
 fi
 unset DB_PASS
 
+# Trust the proxy's protocol header, when there is a proxy.
+#
+# Written into wp-config.php with sed rather than `wp config set`, because this
+# is a conditional, not a constant, and it has to run before WordPress decides
+# whether the current request is secure.
+#
+# Only the header set by our own vhost is trusted. X-Forwarded-Proto is
+# client-supplied on a directly-exposed host, so this is guarded behind an
+# explicit opt-in rather than being on by default: turning it on where nothing
+# strips the incoming header would let a visitor assert their own connection
+# was secure when it was not.
+if [ -n "$BEHIND_TLS_PROXY" ] && ! grep -q 'ABYSS_PROXY_TLS' "$WP_DIR/wp-config.php"; then
+	log "Trusting the reverse proxy's X-Forwarded-Proto"
+
+	# Shell tools only. The container image this runs in has no python3, and an
+	# earlier draft of this block used it — which would have failed on the
+	# droplet at the one moment there is no console to debug from.
+	[ "$(head -n 1 "$WP_DIR/wp-config.php")" = "<?php" ] \
+		|| die "wp-config.php does not open with a bare <?php on line 1; refusing to edit it blindly."
+
+	ABYSS_TMP="$(mktemp)"
+	{
+		printf '%s\n' '<?php'
+		cat <<'PHPEOF'
+
+/* ABYSS_PROXY_TLS: TLS terminates at the reverse proxy in front of this host,
+   so the request arrives here as plain HTTP. Without this, WordPress compares
+   http against an https WP_HOME and redirects to https forever.
+   The vhost overwrites this header on every request, so a client cannot set it. */
+if ( isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'] ) {
+	$_SERVER['HTTPS'] = 'on';
+}
+PHPEOF
+		tail -n +2 "$WP_DIR/wp-config.php"
+	} > "$ABYSS_TMP"
+
+	cat "$ABYSS_TMP" > "$WP_DIR/wp-config.php"
+	rm -f "$ABYSS_TMP"
+	chown www-data:www-data "$WP_DIR/wp-config.php"
+	sudo -u www-data -- php -l "$WP_DIR/wp-config.php" >/dev/null \
+		|| die "wp-config.php failed to parse after adding the proxy check."
+fi
+
 if ! wp_run core is-installed 2>/dev/null; then
 	read -rsp "Password for the new WordPress admin '$ADMIN_USER': " ADMIN_PASS; echo
 	[ -n "$ADMIN_PASS" ] || die "admin password cannot be empty."
 
 	wp_run core install \
-		--url="https://$SITE_DOMAIN" \
+		--url="$SITE_SCHEME://$SITE_DOMAIN" \
 		--title="$SITE_TITLE" \
 		--admin_user="$ADMIN_USER" \
 		--admin_password="$ADMIN_PASS" \
@@ -380,7 +450,7 @@ fi
 log "Done"
 cat <<EOF
 
-Provisioned: https://$SITE_DOMAIN  (not yet TLS)
+Provisioned: $SITE_SCHEME://$SITE_DOMAIN  (not yet TLS)
 
 Remaining, in order, and yours to run. Everything above this line was
 provider-neutral; everything below is where the two differ.

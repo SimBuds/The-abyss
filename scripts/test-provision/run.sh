@@ -23,11 +23,19 @@ trap 'rm -rf "$CTX"' EXIT
 
 cp "$REPO_DIR"/scripts/test-provision/{Dockerfile,drive.py,verify.sh} "$CTX/"
 
-# Copy the working tree, not HEAD, so uncommitted changes to provision.sh are
-# what actually gets tested. Tracked files only, so the build context stays
-# small and no stray local artefact ends up inside the image.
+# Copy the working tree, not HEAD, so uncommitted changes are what actually gets
+# tested.
+#
+# --others --exclude-standard matters more than it looks. `git ls-files` alone
+# lists TRACKED files, so a brand-new file that had never been committed was
+# silently left out of the build context while the harness claimed to be testing
+# the working tree. That surfaced on 2026-08-02 as a fatal error in the
+# container — a new theme include existed locally, the site worked, and the test
+# provisioned a site that could not boot. Ignored files stay out, so no local
+# artefact ends up in the image.
 mkdir -p "$CTX/repo"
-( cd "$REPO_DIR" && git ls-files -z | tar --null -T - -cf - ) | tar -xf - -C "$CTX/repo"
+( cd "$REPO_DIR" && git ls-files -z --cached --others --exclude-standard \
+    | tar --null -T - -cf - ) | tar -xf - -C "$CTX/repo"
 
 echo "==> Building. Two full provision runs, then verification."
 docker build -t abyss-provision-test "$CTX"

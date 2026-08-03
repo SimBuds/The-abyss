@@ -35,7 +35,15 @@ if ( get_theme_mod( 'abyss_home_snapshot', true ) ) {
 }
 ?>
 <section class="wrap section">
-	<div class="hero">
+	<?php
+	/*
+	 * The rail is optional, so the grid has to be too. With the snapshot off —
+	 * which is the state whenever there is no rate data to show — the two-column
+	 * hero kept its second column and left half the page empty next to the lead
+	 * story.
+	 */
+	?>
+	<div class="hero<?php echo $snapshot ? '' : ' hero--solo'; ?>">
 		<div>
 			<a class="story" href="<?php the_permalink(); ?>">
 				<?php if ( has_post_thumbnail() ) : ?>

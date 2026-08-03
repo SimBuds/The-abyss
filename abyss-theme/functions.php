@@ -17,6 +17,7 @@ define( 'ABYSS_VERSION', '1.0.0' );
  * merged in, because it is the part a future theme change must not drop.
  */
 require_once get_template_directory() . '/inc/compliance.php';
+require_once get_template_directory() . '/inc/article-parts.php';
 
 /* -------------------------------------------------------------------------
  * Setup
@@ -44,12 +45,21 @@ function abyss_setup() {
 	add_image_size( 'abyss-card', 720, 480, true );
 	add_image_size( 'abyss-pick', 640, 480, true );
 
+	/*
+	 * Two footer columns were dropped on 2026-08-02: five locations for a site
+	 * with three pages meant three empty pickers in wp-admin and three chances
+	 * to assign a menu somewhere it would never render.
+	 *
+	 * `legal` stays. It was unused for the same reason as the others, but an
+	 * affiliate site needs a home for the privacy policy, terms and the
+	 * disclosure page, and mixing those into a content menu — where the privacy
+	 * policy currently sits, under "Sections" — is what this location exists to
+	 * avoid.
+	 */
 	register_nav_menus( array(
-		'primary'      => __( 'Primary (header)', 'abyss' ),
-		'footer-one'   => __( 'Footer column 1', 'abyss' ),
-		'footer-two'   => __( 'Footer column 2', 'abyss' ),
-		'footer-three' => __( 'Footer column 3', 'abyss' ),
-		'legal'        => __( 'Legal (footer bottom)', 'abyss' ),
+		'primary'    => __( 'Primary (header)', 'abyss' ),
+		'footer-one' => __( 'Footer column 1', 'abyss' ),
+		'legal'      => __( 'Legal (footer bottom)', 'abyss' ),
 	) );
 }
 add_action( 'after_setup_theme', 'abyss_setup' );
@@ -840,3 +850,23 @@ function abyss_pagination() {
  * is translated and matching it by hand breaks in every locale but this one.
  */
 add_filter( 'get_the_archive_title_prefix', '__return_empty_string' );
+
+/**
+ * Widget area in the article rail.
+ *
+ * Registered so the sidebar is editable from wp-admin rather than only by
+ * editing single.php. The hardcoded blocks below it stay: a site with no
+ * widgets configured should still have a rail worth having.
+ */
+function abyss_widgets_init() {
+	register_sidebar( array(
+		'name'          => __( 'Article rail', 'abyss' ),
+		'id'            => 'abyss-rail',
+		'description'   => __( 'Appears in the sidebar of single articles, above "Keep reading".', 'abyss' ),
+		'before_widget' => '<section id="%1$s" class="card card--pad rail__widget %2$s">',
+		'after_widget'  => '</section>',
+		'before_title'  => '<p class="rail__title">',
+		'after_title'   => '</p>',
+	) );
+}
+add_action( 'widgets_init', 'abyss_widgets_init' );

@@ -1655,3 +1655,317 @@ cards should leave a gap — cards stay one width and the grid stays legible. Th
 was settled earlier when a single related post stretched to a 960px column. Lanes
 are the opposite: their count is editorial, not incidental, so the row should
 close up around however many there are.
+
+---
+
+### Step 8j — type in rem, and the mobile image crop
+
+**Goal:** close WCAG 1.4.4 (Resize text), the last known accessibility gap.
+
+**Why it matters:** all 84 font sizes were `px`. Page zoom still worked, so this
+was invisible in testing, but a reader who has set a larger default font size in
+their browser — which is the accommodation people with low vision actually use —
+got the same 13px small print as everyone else. `px` ignores that setting
+entirely.
+
+**The conversion is faithful.** Every size is the same number of pixels at the
+default 16px root, so nothing was redesigned. What changed is that the sizes now
+scale. Seven are `clamp()` rather than a flat `rem`, and they are exactly the
+seven that already had breakpoint overrides — the clamps replace those, so type
+scales continuously instead of stepping at 1040px and 782px.
+
+Every clamp keeps a `rem` term in its preferred value. A clamp whose middle term
+is `vw` alone tracks the viewport and ignores the reader's font size, which
+reintroduces the same failure in a form that is harder to spot.
+
+**Verify:** 0 `px` font sizes remain. Overflow measured across 5 page types × 5
+viewport/root-size combinations: **25 of 25 clean**, including 390px at a 32px
+root, which is the 200% case the success criterion is actually about.
+
+**Converting the type is what exposed the real bugs.** With `px`, text never
+grew, so nothing downstream was ever stressed. Once it did:
+
+- *Long words had no break opportunity.* At 200% a display heading is 100px+ and
+  a single word no longer fits the column, which pushed the home and article
+  pages sideways. `overflow-wrap: break-word` on `body`, inherited everywhere; it
+  only breaks when the word would otherwise overflow.
+- *The rate rows overflowed.* `.snap__v` is `white-space: nowrap` by design so a
+  rate is never split across lines, which makes it unshrinkable. Fixed by giving
+  the label column a zero flex basis so it shrinks and breaks instead.
+- *Pagination links had a fixed `height: 42px`* around text that grows. Now
+  `min-height`, so 42px stays the touch-target floor without being a ceiling.
+
+**A wrong fix, caught by looking:** the first attempt at the rate rows used
+`flex-wrap: wrap`. That fixed 200% and quietly broke the ordinary case — the
+value dropped onto its own line at desktop, because flex wrapping is decided from
+each item's natural width, not from whether it could have shrunk. Reverted. The
+before/after screenshots are the only reason this was caught; the overflow probe
+said the wrapped version passed.
+
+**Separately, reported from a real phone: images were cropping badly on mobile.**
+Confirmed. `.thumb--wide` is `21/9`, which across a 334px column is a 143px band.
+Every source image here measures between 1.56 and 1.78, so `object-fit: cover`
+was discarding most of the subject rather than framing it — the article's lead
+image showed a horizontal slice with the subject cut out of it. Below 782px both
+`.thumb--wide` and `.thumb--hero` now use `3/2`, the card ratio, so all imagery
+on mobile shares one shape and crops the sides rather than the middle.
+
+Worth noting for later: `21/9` also crops roughly a quarter off a 16:9 source at
+desktop. That is the existing design and was left alone, but it is a deliberate
+choice rather than an accident, and it is worth a second look when real
+photography replaces the placeholders.
+
+**Q&A:**
+
+*Why not normalise 21 ad-hoc sizes into a proper scale while converting?* Because
+that is a design change wearing an accessibility change's clothes. Renaming sizes
+would shift the visual result and make the diff impossible to review against the
+question that matters — did anything move? Nothing moved. Normalising the scale
+is a separate job worth doing on its own terms.
+
+*Why not `hyphens: auto` so broken words get a hyphen?* It reads better in the
+one extreme case and changes typography everywhere else. `break-word` only fires
+when a word genuinely does not fit; hyphenation applies constantly.
+
+*Why is `px` still used for padding, radii and borders?* Those do not carry the
+resize obligation, and converting them would have made this a whole-theme
+rewrite. The one that mattered was a fixed `height` around text, which is fixed.
+
+---
+
+### Step 8k — nav breakpoint, and a private preview on the portfolio droplet
+
+**Two things, both prompted by looking at the site on a phone-sized viewport.**
+
+#### The nav was collapsing 176px too early
+
+Reported as "on bigger phones the nav is hidden". The hamburger itself is fine —
+verified functionally rather than by eye: at 390px and 440px, clicking the toggle
+sets `nav.display=block`, `aria-expanded=true`, and reveals all three links.
+
+The real defect was the breakpoint. The header collapsed at **782px**, the same
+breakpoint the *layout* uses, and the two are not the same question. Measured
+what the header actually needs:
+
+```
+brand 148 + nav links 233 + CTA 137 + padding 40 + gaps 48 = 606px
+```
+
+So everything from 606px to 782px was getting a hamburger with room to spare — a
+768px iPad in portrait, and every large phone in landscape. The header now
+collapses on its own `@media (max-width: 640px)`, and the layout keeps 782px.
+Verified: 390/440/640 hamburger, 660/768/820 inline nav with the CTA back,
+no overflow at any of them.
+
+The 640px figure is content-dependent and the comment in `style.css` says so — a
+fourth menu item costs roughly another 90px and the number needs re-measuring.
+
+#### A password-protected preview on the existing droplet
+
+Goal: see the site on a real URL without buying a domain, without touching the
+portfolio it shares a host with, and without it being indexed.
+
+**Subdomain, not a URL path.** A path prefix means `WP_HOME` carries it,
+`RewriteBase` changes, cloaked links become `/abyss/go/`, and the proxy must
+preserve the prefix. A subdomain costs nothing on a domain already owned and
+behaves exactly as `provision.sh` already expects.
+
+**noindex is not privacy, so it is not the only control.** `blog_public = 0`
+gets `noindex, nofollow` on every page and 404s the sitemaps — both re-verified
+in this step. But issuing a certificate publishes the hostname in Certificate
+Transparency logs, which are scraped continuously, so the URL is public
+knowledge minutes after certbot runs whether or not it is ever linked. HTTP
+Basic Auth at the vhost is what actually holds; noindex is the polite half.
+
+**New files:** `compose.droplet.yaml`, `docker/abyss-preview.conf`,
+`DEPLOY-DROPLET.md`.
+
+`compose.droplet.yaml` is standalone rather than an override, because Compose
+*appends* `ports` across `-f` files — an override cannot remove the local file's
+`0.0.0.0:2222` mapping, and a file that appears to close a port while publishing
+an SSH daemon to the internet is worse than no file. It binds `127.0.0.1:8080`
+only and publishes nothing else.
+
+**Verify — the droplet path was run end to end in a throwaway container**, not
+just written down. `SKIP_PACKAGES=1 BEHIND_TLS_PROXY=1` provisioning exits `0`
+and produces an installed site, `abyss-theme` active, `/%postname%/` permalinks,
+nine plugins in the right states, `WP_HOME=https://abyss.example.com`, and the
+proxy check present in `wp-config.php`. With `blog_public=0`: `noindex, nofollow`
+on the front page, `/sitemap_index.xml` 404.
+
+**Three defects found by running it, all of which would have hit the droplet:**
+
+1. *The proxy-TLS block used `python3`, which the image does not have.* It would
+   have failed on the droplet at the one moment there is no console to debug
+   from. Rewritten with shell tools, guarded by a check that line 1 really is
+   `<?php`, and followed by `php -l` so a broken config fails loudly rather than
+   as a white screen.
+2. *`sudo` is not in the image*, and `provision.sh` uses `sudo -u www-data` for
+   every WP-CLI call. It died after creating the database, leaving a
+   half-provisioned site. Added to the Dockerfile — a real Ubuntu host has it, so
+   its absence was the container silently diverging from the server it mirrors.
+3. *`docker exec -i` is not enough.* Bash only prints a `read -p` prompt when
+   stdin is a terminal, so without `-t` the password prompt never appears and the
+   script hangs forever with no output. The runbook says `-it`.
+
+**Q&A:**
+
+*The redirect-loop protection — was it actually needed, or cargo-culted?* Needed,
+and the shape of it is worth knowing. Without the header the **front page still
+returns 200**, so the site looks fine. It is `wp-login.php` and `/wp-admin/` that
+`302` to `https://…`, which the proxy hands back as http, which redirects again.
+You would deploy, see a working site, and discover later you could never log in.
+
+*Why `RequestHeader set` rather than `setifempty`?* `set` overwrites whatever the
+client sent. `X-Forwarded-Proto` is client-supplied on a directly-reachable host,
+so trusting an incoming value would let a visitor assert their own connection was
+secure. The wp-config side is behind an explicit opt-in for the same reason.
+
+*Why run `provision.sh` inside the container rather than writing container-specific
+steps?* Because a parallel list of commands drifts from the script, and the script
+is the thing with a test harness. `SKIP_PACKAGES` is one flag against that,
+versus a second unproven procedure to maintain.
+
+---
+
+### Step 8l — hosting explored, then parked
+
+**Parked 2026-08-02, at Casey's call.** Neither an SSH tunnel nor a public
+subdomain on the portfolio droplet is the right move yet. Recorded here so the
+files left behind are explicable rather than mysterious, and so the reasoning
+does not have to be rebuilt from scratch later.
+
+**Left in the repo, unused and untracked:** `compose.droplet.yaml`,
+`docker/abyss-preview.conf`, `DEPLOY-DROPLET.md`. All three were run end to end
+in throwaway containers, not just written. Delete them freely — this entry is
+enough to rebuild them.
+
+**Kept, because they are not hosting-specific and are already tested:**
+
+- `sudo` in `docker/Dockerfile`. `provision.sh` drops to `www-data` with
+  `sudo -u www-data` for every WP-CLI call, and a real Ubuntu host has sudo. Its
+  absence was the container quietly diverging from the server it claims to
+  mirror, and it surfaced as a half-provisioned site — database created, nothing
+  after it.
+- `SKIP_PACKAGES`, `BEHIND_TLS_PROXY` and `SITE_SCHEME` in `provision.sh`. All
+  three are opt-in and default to the previous behaviour, so the bare-host path
+  is byte-for-byte what it was. `scripts/test-provision/run.sh` still passes.
+
+**Worth keeping from the analysis, whatever the eventual host:**
+
+*noindex is not the strongest form of "not crawled" — unreachable is.* Anything
+served publicly needs a certificate, and issuing one publishes the hostname in
+Certificate Transparency logs, which are public, append-only and scraped
+continuously. A private subdomain is public knowledge minutes after certbot
+runs, whether or not it is ever linked.
+
+*The redirect loop behind a TLS proxy hides itself.* Without an
+`X-Forwarded-Proto` check in `wp-config.php`, the front page still returns 200 —
+it is `wp-login.php` and `/wp-admin/` that redirect forever. The site looks
+fine and you cannot log in.
+
+*`docker exec -i` is not enough for `provision.sh`.* Bash prints a `read -p`
+prompt only when stdin is a terminal, so without `-t` the password prompt never
+appears and the script hangs silently. Use `-it`.
+
+**Q&A:**
+
+*Why keep the flags if hosting is parked?* Because they are guards, not
+features, and each was added in response to something that actually broke. A
+flag that defaults to the old behaviour costs nothing to keep and has to be
+rediscovered if removed.
+
+---
+
+### Step 8m — theme review, and the article furniture it was missing
+
+**Goal:** decide what the theme actually needs to be a good template, rather than
+continuing to build on assumptions from the design comp.
+
+**The inventory that prompted it.** 12 templates, 8 template parts, 2 custom post
+types, 18 Customizer settings, 5 menu locations. Reading it back showed the theme
+had two personalities:
+
+- **A publishing theme** — hero, lanes, latest posts, article page, comments,
+  newsletter. Needs nothing but posts.
+- **A comparison engine** — ticker, rate snapshot, savings table (`abyss_offer`,
+  9 meta fields), tested picks (`abyss_pick`, 5 meta fields). Every part needs a
+  data pipeline that does not exist.
+
+**Four of the six homepage sections were in the second group.** That is why the
+site was showing invented bank names: the sections were built, so they rendered
+something. With no affiliate partners yet and the plan being to launch a concept
+first, they are now switched off through their existing Customizer toggles. The
+code, post types and meta boxes stay for when there is real data.
+
+**What the publishing half was missing**, which was more than expected:
+breadcrumbs, tags, prev/next navigation, an author box, share links, a table of
+contents, and any widget area at all. All are now built, in
+`abyss-theme/inc/article-parts.php` plus core's `the_tags()` and
+`the_post_navigation()`.
+
+**Decisions inside that work worth recording:**
+
+*The author box does not call Gravatar.* `get_avatar()` fetches from
+gravatar.com, which would make every article view a third-party request carrying
+the reader's IP. The theme currently makes none — the fonts were self-hosted for
+this reason — and an author photo is not worth giving that up on a site that will
+need a cookie banner. It renders initials locally, behind an `abyss_author_avatar`
+filter so a real image can replace it later.
+
+*Breadcrumbs and their schema come from one function.* `abyss_breadcrumb_trail()`
+returns the trail as data; the visible markup and the `BreadcrumbList` JSON-LD are
+both generated from it, so they cannot drift. The primary category is picked by
+lowest `term_id`, which is how WordPress picks one for a permalink — any other
+rule would make the trail disagree with the post's own URL.
+
+*Share links are anchors, not widgets.* Every share widget is a script from
+another origin that sees every reader of every article. These are plain links to
+the same endpoints, tracking nobody until clicked.
+
+*`legal` was kept when the other two menu locations were pruned.* It was unused
+like `footer-two` and `footer-three`, but an affiliate site needs a home for the
+privacy policy, terms and disclosure — and the privacy policy was sitting in a
+content menu under "Sections". It has been moved into a legal menu instead, so
+the location is now used rather than deleted.
+
+**Verify:** all 10 routes correct including the new `/tag/…` archives. Exactly
+one `Article` and one `BreadcrumbList` on an article page, three `ListItem`s,
+no duplicates. No PHP notices. No third-party resource hosts — the only external
+URLs are share targets and links inside post content. Overflow measured across
+6 page types × 6 viewport/root-size combinations: **36 of 36 clean**, including
+390px at a 32px root.
+
+The table of contents renders nothing on the current articles, which is correct:
+it needs three headings and they have one. Proved rather than assumed with a
+temporary post carrying four headings — the list rendered, and two identically
+worded headings correctly became `#second-section` and `#second-section-2`.
+
+**A defect in the test harness, found by the harness failing:**
+
+The provisioning gate went red with a fatal error — `article-parts.php` missing
+inside the container. The theme was fine. `scripts/test-provision/run.sh` built
+its context with `git ls-files`, which lists **tracked** files, so a brand-new
+file that had never been committed was silently excluded while the script's own
+comment claimed it tested the working tree. Every previous green run had that
+hole in it. Now `git ls-files --cached --others --exclude-standard`.
+
+**Q&A:**
+
+*Why keep the comparison-engine code rather than deleting it?* It is written and
+tested, it is the eventual differentiator, and the toggles already existed to
+turn it off cleanly. Deleting it would mean rebuilding two custom post types and
+their meta boxes later to get back to where the repo already is.
+
+*Why did the share links and author box need moving out of `.prose`?* Because
+`.prose a` styles links the way an author's inline links should look — accent
+coloured and underlined — and it was doing that to the share buttons and the
+author bio. They are chrome, not prose. A new `.artcol` wrapper keeps them in the
+same grid column without inheriting body-copy styling.
+
+*The article page now has three ways out: related posts, prev/next, and tags. Is
+that redundant?* They fail at different times. Related posts is scoped to the
+post's categories and renders nothing when a category holds one post, which is
+exactly the state of a new site. Prev/next always has somewhere to go. Tags cut
+across categories. On a mature site the first is the most useful; on this one it
+is the least.

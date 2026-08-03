@@ -11,6 +11,8 @@ while ( have_posts() ) :
 	the_post();
 	?>
 	<article class="wrap art">
+		<?php abyss_breadcrumbs(); ?>
+
 		<header class="art__head">
 			<h1 class="art__title"><?php the_title(); ?></h1>
 		</header>

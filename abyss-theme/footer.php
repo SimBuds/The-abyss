@@ -24,10 +24,14 @@
 			</div>
 
 			<?php
+			/*
+			 * One column. `footer-two` and `footer-three` were unregistered on
+			 * 2026-08-02 — this loop kept iterating over locations that no
+			 * longer exist, which was harmless only because has_nav_menu()
+			 * returns false for them.
+			 */
 			$columns = array(
-				'footer-one'   => __( 'Sections', 'abyss' ),
-				'footer-two'   => __( 'Tools', 'abyss' ),
-				'footer-three' => __( 'About', 'abyss' ),
+				'footer-one' => __( 'Sections', 'abyss' ),
 			);
 
 			foreach ( $columns as $location => $heading ) :
