@@ -1969,3 +1969,60 @@ post's categories and renders nothing when a category holds one post, which is
 exactly the state of a new site. Prev/next always has somewhere to go. Tags cut
 across categories. On a mature site the first is the most useful; on this one it
 is the least.
+
+---
+
+### Step 8n — the disclosure now only claims what is true
+
+**Goal:** stop the site-wide disclosure bar asserting a paid relationship that
+does not exist.
+
+**The problem.** `template-parts/disclosure.php` rendered on every page of the
+site with the line *"Some links on this page are affiliate links. If you open an
+account or buy through one, we may earn a commission."* There are no affiliate
+programmes configured, so on every page that was false. It also rendered on
+pages with no outbound links at all — the privacy policy, the newsletter page —
+where it would still be wrong on the day the first programme goes live.
+
+That matters beyond tidiness. A disclosure that is wrong most of the time trains
+readers to skip it, and it costs precisely when it starts being true. The FTC's
+concern is that a disclosure sits close to the thing being disclosed, not that a
+site carries a blanket footer.
+
+**The change.** `abyss_disclosure_style` gains an `auto` mode, and `auto` is the
+new default. It renders only when `abyss_compliance_affiliate_domains()` returns
+something. `minimal` and `loud` still force it on for anyone who wants it
+regardless, and `off` still forces it off.
+
+This only governs the **site-wide** bar. The per-article disclosure — the one
+that has to sit next to the actual link — is prepended to the content by
+`inc/compliance.php` and is untouched by this setting.
+
+**Verify.** Both directions, not just the one that was broken:
+
+- With `abyss-affiliate-test.php` moved aside, so no programme is configured:
+  the footer bar renders nothing, and so does the per-article disclosure.
+- With it restored, both come back.
+
+That second half matters. Gating a compliance notice is only safe if you have
+watched it reappear.
+
+**A useful confusion along the way.** After making the change the bar was still
+rendering, which looked like the gate had failed. It had not: the mu-plugin
+fixture `abyss-affiliate-test.php` registers `example.com` as an affiliate
+domain, so there genuinely *was* a programme configured and the honest answer was
+to show the bar. The gate was right and the premise was wrong. Worth recording
+because the same fixture will make the site look monetised in any future check
+of this kind, right up until it is deleted before launch.
+
+**Q&A:**
+
+*Why default to `auto` rather than leaving `minimal` and letting the site owner
+switch it off?* Because the failure is silent in the direction that matters. A
+site with the bar wrongly on looks compliant and is making a false statement; a
+site with it wrongly off is visibly missing something the moment anyone looks for
+it. Defaults should fail toward the noisy error, not the quiet one.
+
+*Does this weaken disclosure once affiliates exist?* No — the day a domain is
+added to the filter, the bar returns everywhere, and the per-article disclosure
+was never gated on this setting at all.

@@ -5,9 +5,24 @@
  * @package Abyss
  */
 
-$style = get_theme_mod( 'abyss_disclosure_style', 'minimal' );
+$style = get_theme_mod( 'abyss_disclosure_style', 'auto' );
 
 if ( 'off' === $style ) {
+	return;
+}
+
+/*
+ * 'auto' means "say it when it is true". The bar claims that some links on the
+ * page are affiliate links, and until a programme is configured there are none,
+ * anywhere. Asserting a paid relationship that does not exist is a small
+ * falsehood, but it sits in the one piece of furniture whose entire job is to be
+ * accurate about money.
+ *
+ * This is the site-wide statement. The per-article disclosure, which is the one
+ * that has to sit next to the actual link, is prepended to the content by
+ * inc/compliance.php and is unaffected by this setting.
+ */
+if ( 'auto' === $style && ! abyss_compliance_affiliate_domains() ) {
 	return;
 }
 

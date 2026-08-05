@@ -511,18 +511,29 @@ function abyss_customize( $wp_customize ) {
 		'panel' => 'abyss',
 	) );
 
+	/*
+	 * Defaults to 'auto' rather than always-on. The bar says "Some links on this
+	 * page are affiliate links", and with no affiliate programme configured that
+	 * was a false statement rendered on every page of the site, including pages
+	 * with no outbound links at all. A disclosure that is wrong most of the time
+	 * teaches readers to skip it, which costs exactly when it starts being true.
+	 *
+	 * 'minimal' and 'loud' still force it on for anyone who wants it regardless.
+	 */
 	$wp_customize->add_setting( 'abyss_disclosure_style', array(
-		'default'           => 'minimal',
+		'default'           => 'auto',
 		'sanitize_callback' => 'sanitize_key',
 	) );
 	$wp_customize->add_control( 'abyss_disclosure_style', array(
-		'label'   => __( 'Style', 'abyss' ),
-		'section' => 'abyss_disclosure',
-		'type'    => 'select',
-		'choices' => array(
-			'minimal' => __( 'Minimal legal line', 'abyss' ),
-			'loud'    => __( 'Prominent "how we make money" bar', 'abyss' ),
-			'off'     => __( 'Hidden (not recommended)', 'abyss' ),
+		'label'       => __( 'Style', 'abyss' ),
+		'description' => __( 'Auto shows the bar only once an affiliate programme is configured.', 'abyss' ),
+		'section'     => 'abyss_disclosure',
+		'type'        => 'select',
+		'choices'     => array(
+			'auto'    => __( 'Auto (recommended)', 'abyss' ),
+			'minimal' => __( 'Always on, minimal legal line', 'abyss' ),
+			'loud'    => __( 'Always on, prominent "how we make money" bar', 'abyss' ),
+			'off'     => __( 'Hidden', 'abyss' ),
 		),
 	) );
 
