@@ -71,5 +71,39 @@ $best = $rows[0]['apy'];
 		</div>
 	</div>
 
-	<p class="smallprint"><?php esc_html_e( 'We may be paid if you open an account through this table. Ranking is by rate and terms only &mdash; placement is never sold. Rates are variable and can change without notice.', 'abyss' ); ?></p>
+	<?php
+	/*
+	 * Freshness, stated rather than implied. A comparison table with no date on
+	 * it invites the reader to assume it is current; one carrying a date older
+	 * than they expected at least lets them decide.
+	 */
+	$check = abyss_offers_verification( $rows );
+
+	/*
+	 * Three states, and the difference matters:
+	 *   - a row with no usable date  -> claim nothing at all
+	 *   - all dated, oldest recent   -> say so
+	 *   - all dated, oldest too old  -> say so AND warn
+	 * The bound is the oldest row, so one freshly checked account cannot vouch
+	 * for the rest of the table.
+	 */
+	$verified = $check['oldest'] && ! $check['missing'];
+	$stale    = $verified
+		&& ( time() - $check['oldest'] ) > ( abyss_offer_stale_after() * DAY_IN_SECONDS );
+	?>
+	<p class="smallprint">
+		<?php if ( $verified ) : ?>
+			<?php
+			printf(
+				/* translators: %s: human-readable date. */
+				esc_html__( 'All rates verified since %s.', 'abyss' ),
+				esc_html( date_i18n( get_option( 'date_format' ), $check['oldest'] ) )
+			);
+			?>
+			<?php if ( $stale ) : ?>
+				<strong><?php esc_html_e( 'They may be out of date &mdash; check with the provider before opening an account.', 'abyss' ); ?></strong>
+			<?php endif; ?>
+		<?php endif; ?>
+		<?php esc_html_e( 'We may be paid if you open an account through this table. Ranking is by rate and terms only &mdash; placement is never sold. Rates are variable and can change without notice.', 'abyss' ); ?>
+	</p>
 </section>

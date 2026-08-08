@@ -68,7 +68,28 @@ if ( get_theme_mod( 'abyss_home_snapshot', true ) ) {
 		<?php if ( $snapshot ) : ?>
 			<aside class="card card--pad">
 				<h2 style="font-weight:700;font-size:20px"><?php esc_html_e( "Today's best rates", 'abyss' ); ?></h2>
-				<p class="meta" style="margin-top:8px"><?php esc_html_e( 'Checked this morning, 8:00 ET.', 'abyss' ); ?></p>
+				<?php
+				/*
+				 * Was the hardcoded string "Checked this morning, 8:00 ET." It
+				 * said that on every page load whether or not anyone had checked
+				 * anything, which is the one claim a rate box must not make
+				 * falsely. It now reports the newest verification date across
+				 * the rows actually shown, and says nothing when none carries
+				 * one.
+				 */
+				$snap_check = abyss_offers_verification( $snapshot );
+				?>
+				<?php if ( $snap_check['oldest'] && ! $snap_check['missing'] ) : ?>
+					<p class="meta" style="margin-top:8px">
+						<?php
+						printf(
+							/* translators: %s: human-readable date, e.g. "3 August 2026". */
+							esc_html__( 'All rates verified since %s.', 'abyss' ),
+							esc_html( date_i18n( get_option( 'date_format' ), $snap_check['oldest'] ) )
+						);
+						?>
+					</p>
+				<?php endif; ?>
 
 				<ul class="snap">
 					<?php foreach ( $snapshot as $row ) : ?>

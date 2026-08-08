@@ -17,7 +17,10 @@ $shortcode = get_theme_mod( 'abyss_news_shortcode', '' );
  * addresses is worse than one that is visibly not ready yet, so the unwired
  * case renders as unavailable instead.
  */
-$action = apply_filters( 'abyss_newsletter_action', '' );
+$action = apply_filters( 'abyss_newsletter_action', get_theme_mod( 'abyss_news_action', '' ) );
+/* Never empty: name="" is not submitted at all, so the form would reach the
+   provider carrying no address while the reader saw a success page. */
+$field  = abyss_sanitize_field_name( get_theme_mod( 'abyss_news_field', 'email' ) );
 ?>
 <section class="news" id="newsletter">
 	<div class="wrap section news__in">
@@ -31,7 +34,29 @@ $action = apply_filters( 'abyss_newsletter_action', '' );
 				<?php elseif ( $action ) : ?>
 					<form action="<?php echo esc_url( $action ); ?>" method="post">
 						<label class="news__label" for="abyss-email"><?php esc_html_e( 'Your email', 'abyss' ); ?></label>
-						<input class="input" type="email" id="abyss-email" name="email" placeholder="you@work.com" required />
+						<input class="input" type="email" id="abyss-email"
+							name="<?php echo esc_attr( $field ); ?>"
+							placeholder="you@work.com" autocomplete="email" required />
+
+						<?php
+						/*
+						 * There is deliberately no honeypot here.
+						 *
+						 * One was added and then removed on 2026-08-03: this
+						 * form posts cross-origin, straight to the provider, so
+						 * no code in this theme ever sees the submission and
+						 * there is nothing to inspect the trap field. It was
+						 * zero protection that looked like protection, and it
+						 * forwarded an unexpected key to the provider besides.
+						 *
+						 * Spam filtering belongs to whoever receives the post —
+						 * beehiiv and Kit both do it. If submissions are ever
+						 * routed through admin-post.php so the site can show its
+						 * own thank-you page, a honeypot becomes real at that
+						 * point, because something will finally be reading it.
+						 */
+						?>
+
 						<button class="btn btn--primary btn--block" style="margin-top:14px" type="submit"><?php esc_html_e( 'Subscribe free', 'abyss' ); ?></button>
 					</form>
 				<?php else : ?>

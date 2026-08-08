@@ -459,6 +459,95 @@ themselves, and the inventory shrinks to establishing the starting point:
 Recording the answers is Step 9's deliverable. Nothing is changed while taking
 them.
 
+## Data sourcing: what the comparison engine would actually need
+
+Written 2026-08-03, after researching what is available. The short version is
+that the four data-driven sections have wildly different sourceability, and the
+one that earns the money is the one that cannot be automated.
+
+### The four things, ranked by how hard they are to source
+
+**1. Macro numbers — easy, free, official.**
+Treasury yields, the 30-year mortgage average, the fed funds rate. All of it is
+in FRED (Federal Reserve Economic Data), from the St. Louis Fed: a free API key,
+no cost, no redistribution fee, and it is the primary source rather than someone
+else's scrape of it. `DGS10` is the 10-year treasury, `MORTGAGE30US` is the
+Freddie Mac weekly 30-year average — which is exactly the number the snapshot box
+currently invents. This is the one integration worth doing first because it is
+free, official, and replaces fabricated numbers with real ones.
+
+**2. Market ticker — technically easy, legally the hard part.**
+Getting index and equity prices is a solved problem with a dozen vendors. Showing
+them on a public website is *display use*, which is a licensing question, not a
+technical one, and free tiers frequently permit personal or internal use only. An
+API key that works in production is not evidence that customer-facing display is
+licensed. Real-time quotes also carry exchange fees.
+
+The practical answer for a daily brief: **use delayed or end-of-day data**. It
+sits at the cheapest licensing tier, it is what the editorial voice actually
+needs — a brief published before the open is not a live terminal — and it removes
+the compliance burden almost entirely. A ticker that says "as of yesterday's
+close" is honest and cheap; one that implies live prices is neither.
+
+**3. Bank-level savings APYs and CD rates — no public API exists.**
+This is the finding that matters most, and it reframes the whole plan.
+
+There is no free or cheap API for per-bank deposit rates. Every comparison site
+either maintains the table by hand on a verification cadence, or licenses a feed
+from a rate vendor (Curinos, RateWatch) at enterprise pricing. One competitor
+publicly documents its process as a weekly manual check against each issuer's
+published disclosure page — which is to say, a person opening a browser.
+
+So the site's monetised centrepiece is manual work, not an integration. That is
+not a failure of research; it is the shape of the market. Plan for it:
+
+- Start with a small table — five or six accounts, not twenty. A short table
+  that is accurate beats a long one that rots.
+- Record where each number came from and when, per row.
+- Once an affiliate network is signed, check whether it offers a product feed.
+  Networks often expose rates and terms for their own advertisers, which
+  automates the subset of the table that is actually monetised.
+
+**4. Tested picks — manual by definition.**
+The section is called "Tested this month". If the data came from an API, nobody
+tested anything.
+
+### Architecture, whenever data does arrive
+
+Nothing calls an API on page load. A page render must never depend on a third
+party being up, being fast, or being within a rate limit.
+
+    scheduled fetch  ->  abyss_offer posts  ->  templates render from the CPT
+
+The store already exists: `abyss_offer` is the model, with a meta box that is the
+editing interface for exactly the fields a feed would populate. So an integration
+is a cron job that writes offer posts, not a new subsystem. A row edited by hand
+and a row written by a fetcher are the same kind of object, which is what allows
+the manual table of point 3 and an automated feed to coexist without a rewrite.
+
+Credentials go in wp-admin or environment, never in the repository. That is tier
+0 in `AGENTS.md` and it does not relax for an API key.
+
+### Built already, 2026-08-03
+
+The provenance layer, because it is needed under every one of the above and needs
+no API to be useful:
+
+- `_abyss_offer_checked` — the date a rate was last verified.
+- `_abyss_offer_source` — the issuer page it was read from.
+- `abyss_offers_last_checked()` and `abyss_offer_stale_after()` (14 days,
+  filterable).
+
+The hero box said *"Checked this morning, 8:00 ET."* on every page load whether
+or not anyone had checked anything. It now reports the newest verification date
+across the rows shown, and says nothing at all when no row carries one. The
+comparison table does the same, and adds a warning once the newest date is older
+than the staleness window.
+
+That last behaviour is the point of the whole layer: a rate table's characteristic
+failure is not being wrong on the day it is published, it is being right on the
+day it is published and never touched again.
+
 ## Delivery sequence
 
 Set by Casey 2026-08-01 and revised the same day after an audit of what actually

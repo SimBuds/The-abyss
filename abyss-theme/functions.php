@@ -284,6 +284,130 @@ function abyss_offer_fields() {
 		'cta'      => array( 'label' => __( 'Button label (default: Open account)', 'abyss' ), 'type' => 'text' ),
 		'snapshot' => array( 'label' => __( 'Show in homepage rate snapshot', 'abyss' ), 'type' => 'checkbox' ),
 		'snapkey'  => array( 'label' => __( 'Snapshot label (e.g. Savings)', 'abyss' ), 'type' => 'text' ),
+
+		/*
+		 * Provenance. Added 2026-08-03, ahead of any data integration, because
+		 * these two are what make a rate table honest and they are needed
+		 * whether the number arrives from an API or from someone reading a
+		 * bank's disclosure page.
+		 *
+		 * There is no public API for bank-level savings APYs — every comparison
+		 * site maintains this by hand or licenses it from a rate vendor — so
+		 * "checked" is a human act for the foreseeable future and the template
+		 * should say when it last happened rather than claim a freshness nobody
+		 * verified.
+		 */
+		'checked'  => array( 'label' => __( 'Rate last verified (YYYY-MM-DD)', 'abyss' ), 'type' => 'text' ),
+		'source'   => array( 'label' => __( 'Source URL (the issuer page the rate was read from)', 'abyss' ), 'type' => 'url' ),
+	);
+}
+
+/**
+ * How stale a verified rate is allowed to get before the theme stops presenting
+ * it as current, in days.
+ *
+ * Savings APYs move with the policy rate and can change without notice, which
+ * the table's own small print already says. Two weeks is a judgement, not a
+ * standard; it is filterable so it can be tightened when the site is actually
+ * maintaining these daily.
+ *
+ * @return int
+ */
+function abyss_offer_stale_after() {
+	return (int) apply_filters( 'abyss_offer_stale_after', 14 );
+}
+
+/**
+ * Sanitise a form field name for the newsletter endpoint.
+ *
+ * NOT sanitize_key(), which lowercases and strips brackets — so Mailchimp's
+ * `EMAIL` was stored as `email` and `fields[email]` as `fieldsemail`, both of
+ * which post successfully and are discarded by the provider. The control's own
+ * description told the user to enter `EMAIL`; the setting could not hold it.
+ *
+ * @param string $value Raw setting value.
+ * @return string
+ */
+function abyss_sanitize_field_name( $value ) {
+	$value = preg_replace( '/[^A-Za-z0-9_\[\]\-]/', '', (string) $value );
+
+	// Never return empty: an input with name="" is not submitted at all, so the
+	// form would post to the provider with no address in it.
+	return '' === $value ? 'email' : $value;
+}
+
+/**
+ * Parse a stored verification date into a timestamp.
+ *
+ * Strict on purpose. The field is free text, and the consequences of accepting
+ * junk are worse than rejecting a valid-but-odd format:
+ *
+ *   strtotime() returns false for unparseable input, and date_i18n( $fmt, false )
+ *   silently formats *the current time* — so a typo made the rate box print
+ *   today's date as the verification date. That is precisely the false freshness
+ *   claim this whole field exists to remove, reintroduced by the code meant to
+ *   fix it. Verified 2026-08-03.
+ *
+ * Future dates are rejected too: a rate cannot have been checked tomorrow, and
+ * accepting one would suppress the staleness warning indefinitely.
+ *
+ * @param string $value Stored meta value.
+ * @return int Unix timestamp, or 0 when the value is missing or not a real past date.
+ */
+function abyss_offer_checked_ts( $value ) {
+	$value = trim( (string) $value );
+
+	if ( ! preg_match( '/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m ) ) {
+		return 0;
+	}
+
+	if ( ! checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) ) {
+		return 0;
+	}
+
+	$ts = strtotime( $value . ' 00:00:00 UTC' );
+
+	if ( ! $ts || $ts > time() + DAY_IN_SECONDS ) {
+		return 0;
+	}
+
+	return $ts;
+}
+
+/**
+ * Verification state across a set of offer rows.
+ *
+ * Reports the OLDEST date, not the newest. A table is only as verified as its
+ * least recently checked row, and reporting the newest let one freshly checked
+ * row vouch for five stale ones and suppress the warning for all of them.
+ *
+ * `missing` is separate rather than folded in, because "some of these were never
+ * checked" and "all of these were checked, a while ago" are different claims and
+ * the template should be able to decline to make either.
+ *
+ * @param array $rows Rows from abyss_offer_rows().
+ * @return array{oldest:int,missing:int}
+ */
+function abyss_offers_verification( $rows ) {
+	$stamps  = array();
+	$missing = 0;
+
+	foreach ( $rows as $row ) {
+		$ts = abyss_offer_checked_ts( isset( $row['checked'] ) ? $row['checked'] : '' );
+
+		if ( $ts ) {
+			$stamps[] = $ts;
+		} else {
+			$missing++;
+		}
+	}
+
+	return array(
+		// min(), not a string sort. Sorting date strings looked right only
+		// because ISO dates happen to sort lexicographically when zero-padded;
+		// "2026-8-3" sorted above "2026-08-06" and reported the wrong bound.
+		'oldest'  => $stamps ? min( $stamps ) : 0,
+		'missing' => $missing,
 	);
 }
 
@@ -587,9 +711,51 @@ function abyss_customize( $wp_customize ) {
 	) );
 	$wp_customize->add_control( 'abyss_news_shortcode', array(
 		'label'       => __( 'Signup form shortcode', 'abyss' ),
-		'description' => __( 'Paste a Mailchimp / MailPoet / Kit shortcode. Leave blank to show the built-in placeholder form.', 'abyss' ),
+		'description' => __( 'From a provider plugin, if you use one. Takes priority over the endpoint below.', 'abyss' ),
 		'section'     => 'abyss_newsletter',
 		'type'        => 'textarea',
+	) );
+
+	/*
+	 * The endpoint the built-in form posts to.
+	 *
+	 * This exists so that choosing a newsletter provider is a setting rather
+	 * than a code change. It was previously reachable only through the
+	 * `abyss_newsletter_action` filter, which meant wiring a provider required
+	 * editing PHP or shipping an mu-plugin — fine for a developer, wrong for the
+	 * thing you do once and never touch again.
+	 *
+	 * A plain form post, deliberately, rather than a provider's script or iframe
+	 * embed. An embed loads a third party on every page view; this contacts
+	 * nobody until a reader actually submits. That is the same reasoning behind
+	 * the self-hosted fonts and the initials-based author avatar.
+	 */
+	$wp_customize->add_setting( 'abyss_news_action', array(
+		'default'           => '',
+		'sanitize_callback' => 'esc_url_raw',
+	) );
+	$wp_customize->add_control( 'abyss_news_action', array(
+		'label'       => __( 'Signup endpoint URL', 'abyss' ),
+		'description' => __( 'Your provider\'s form action, e.g. https://embeds.beehiiv.com/... — until this is set the form shows as not yet open.', 'abyss' ),
+		'section'     => 'abyss_newsletter',
+		'type'        => 'url',
+	) );
+
+	/*
+	 * Providers disagree on this and get it wrong silently: beehiiv expects
+	 * `email`, Kit expects `email_address`, Mailchimp expects `EMAIL`. A wrong
+	 * name means the post succeeds and the address is discarded, which is the
+	 * exact failure the "not open yet" state exists to prevent.
+	 */
+	$wp_customize->add_setting( 'abyss_news_field', array(
+		'default'           => 'email',
+		'sanitize_callback' => 'abyss_sanitize_field_name',
+	) );
+	$wp_customize->add_control( 'abyss_news_field', array(
+		'label'       => __( 'Email field name', 'abyss' ),
+		'description' => __( 'beehiiv: email — Kit: email_address — Mailchimp: EMAIL', 'abyss' ),
+		'section'     => 'abyss_newsletter',
+		'type'        => 'text',
 	) );
 
 	$wp_customize->add_setting( 'abyss_news_fine', array(
@@ -801,6 +967,8 @@ function abyss_offer_rows( $limit = 8 ) {
 			'cta'      => get_post_meta( $offer->ID, '_abyss_offer_cta', true ),
 			'snapshot' => '1' === get_post_meta( $offer->ID, '_abyss_offer_snapshot', true ),
 			'snapkey'  => get_post_meta( $offer->ID, '_abyss_offer_snapkey', true ),
+			'checked'  => get_post_meta( $offer->ID, '_abyss_offer_checked', true ),
+			'source'   => get_post_meta( $offer->ID, '_abyss_offer_source', true ),
 		);
 	}
 

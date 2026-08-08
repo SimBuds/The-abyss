@@ -2026,3 +2026,154 @@ it. Defaults should fail toward the noisy error, not the quiet one.
 *Does this weaken disclosure once affiliates exist?* No — the day a domain is
 added to the filter, the bar returns everywhere, and the per-article disclosure
 was never gated on this setting at all.
+
+---
+
+### Step 8o — newsletter wiring, and the provenance layer
+
+**Two things that could be built without an account or an API key.**
+
+#### Choosing a newsletter provider is now a setting, not a code change
+
+The endpoint was reachable only through the `abyss_newsletter_action` filter,
+which meant wiring a provider required editing PHP or shipping an mu-plugin.
+Fine for a developer, wrong for the thing you do once and never touch again.
+
+Two Customizer fields under Newsletter: **Signup endpoint URL** and **Email field
+name**. The filter still wins where it is used, so the existing local fixture
+keeps working.
+
+The field-name setting is not padding. Providers disagree and fail *silently*:
+beehiiv wants `email`, Kit wants `email_address`, Mailchimp wants `EMAIL`. Post
+the wrong one and the request succeeds while the address is discarded — the exact
+failure the "not open yet" state was built to prevent.
+
+A honeypot was added here and then removed the same day — see step 8p. It could
+not work: the form posts cross-origin, so no code in this theme ever sees the
+submission.
+
+**Verify — four paths, not one:** no endpoint set renders "not open yet"; an
+endpoint renders a real form with the honeypot; changing the field name changes
+the input's `name`; and the filter still overrides the setting. The placeholder
+endpoint was cleared afterwards, because a form posting to a non-existent URL is
+the silent failure this whole design avoids.
+
+**Provider research is in `PLAN.md`.** Short version: Mailchimp's terms prohibit
+affiliate marketing as a business model, which is this site's model, so it is
+out. beehiiv is free to 2,500 subscribers, Kit to 1,000 — both verified on the
+vendors' own pricing pages after a comparison article claimed Kit was free to
+10,000 and was wrong.
+
+#### Provenance on offers
+
+Also new: `_abyss_offer_checked` (date last verified) and `_abyss_offer_source`
+(the issuer page it was read from), plus `abyss_offers_last_checked()` and a
+filterable 14-day staleness window.
+
+The hero rate box said *"Checked this morning, 8:00 ET."* on every page load
+whether or not anyone had checked anything. It now reports the newest
+verification date across the rows shown, says nothing when no row carries one,
+and the comparison table adds a warning once that date is older than the window.
+
+**Verify — all three states:** with no dates, no freshness claim is made at all;
+with a two-day-old date, "Rates last verified 08/06/2026"; with a thirty-day-old
+date, the same line plus "may be out of date — check with the provider before
+opening an account."
+
+**Q&A:**
+
+*Why build provenance before there is any data source?* Because the research
+turned up that there is no public API for bank-level savings APYs — every
+comparison site maintains that table by hand or licenses a feed at enterprise
+prices. So "checked" is a human act for the foreseeable future, and the field
+that records it is needed under both a manual table and an eventual feed. It also
+happens to be the fix for a false claim that was already on the page.
+
+*Why is the staleness window 14 days rather than something defensible?* It is a
+judgement, and the code says so. It is filterable precisely because the right
+number depends on how often the table is actually maintained, which is not known
+yet.
+
+*Why not add the API integration now?* Because the only integration worth doing
+first is FRED, and it is a scheduled fetch writing into `abyss_offer` — which
+needs a decision about what the site publishes before it needs code. The store,
+the meta box and now the provenance fields are all in place, so that work is a
+cron job rather than a subsystem.
+
+---
+
+### Step 8p — code review of step 8o, and seven fixes
+
+**Ran `/code-review` over the working diff before building anything further.** It
+returned seven findings, all in code written in the preceding hour, and the
+review was right on every one. Each claim was re-verified directly before
+fixing rather than taken on trust:
+
+```
+sanitize_key("EMAIL")         -> 'email'
+sanitize_key("fields[email]") -> 'fieldsemail'
+strtotime("not a date")       -> false
+date_i18n("Y-m-d", false)     -> '2026-08-08'   <- today
+sort(["2026-8-3","2026-08-06"]) max -> "2026-8-3"
+```
+
+**Two of the findings reinstated the exact failures the code was written to
+prevent**, which is the part worth sitting with.
+
+*The freshness fix printed a false freshness claim.* `strtotime()` returns
+`false` on unparseable input and `date_i18n( $format, false )` formats the
+current time, so any typo in a verification date made the rate box report
+**today** as the day it was checked. The hardcoded "Checked this morning, 8:00
+ET." was replaced by something that told the same lie less predictably.
+
+*The field-name setting could not hold the values its own description asked
+for.* `sanitize_key()` lowercases and strips brackets, so Mailchimp's `EMAIL`
+became `email` and `fields[email]` became `fieldsemail` — both post successfully
+and are discarded by the provider. That is the silent-discard failure the
+"not open yet" state exists to prevent, moved one step downstream.
+
+**The fixes:**
+
+- `abyss_offer_checked_ts()` — strict `YYYY-MM-DD`, `checkdate()` for real
+  calendar dates, future dates rejected (a rate cannot have been checked
+  tomorrow, and accepting one suppresses the staleness warning forever).
+  Everything downstream now works in timestamps, never strings.
+- `abyss_offers_verification()` replaces `abyss_offers_last_checked()` and
+  reports the **oldest** date plus a count of rows with no usable one. Reporting
+  the newest let one freshly checked row vouch for five stale ones and suppress
+  the warning for all of them. `min()` rather than a string sort, which only
+  looked correct because zero-padded ISO dates happen to sort lexicographically.
+- Templates now claim nothing at all unless every row carries a usable date.
+- `abyss_sanitize_field_name()` preserves case and brackets, and never returns
+  empty — `name=""` is not submitted at all, so the form would have reached the
+  provider carrying no address while the reader saw success.
+
+**The honeypot was removed.** It could not have worked: the form posts
+cross-origin straight to the provider, so no code in this theme ever sees the
+submission and nothing was ever going to inspect the trap field. It was zero
+protection that looked like protection, and it forwarded an unexpected key to
+the provider. The step 8o entry claiming it as spam protection has been
+corrected in place. Spam filtering belongs to whoever receives the post; a
+honeypot becomes real only if submissions are ever routed through
+`admin-post.php`.
+
+**Verify:** the parser rejects `""`, `"not a date"`, `"2026-8-3"`,
+`"2026-13-45"` and `"2099-01-01"`, accepts `"2026-08-06"` and trims whitespace.
+`abyss_offers_verification()` returns `2026-05-01` as oldest from
+`[08-06, 05-01, 08-07]`, and counts a blank row as missing. Rendered, all three
+states behave: one junk date suppresses the claim entirely; all-valid prints
+"All rates verified since 08/06/2026"; one old row drags the whole table's date
+back and triggers the warning.
+
+**Q&A:**
+
+*Why did a review find seven issues in code that had just been verified?* Because
+the verification checked the happy path. Every one of these is a malformed,
+empty, or adversarial input — a junk date, a cleared setting, a bracketed field
+name — and none of them appeared in the fixtures. Testing that a feature works is
+not the same as testing that it fails safely, and the second is where a
+compliance-adjacent feature actually earns its place.
+
+*Why report the oldest date rather than the newest?* Because the sentence is a
+claim about the whole table. "Verified since X" is only true if every row has
+been seen since X, and the oldest row is what makes it true or false.
